@@ -1,0 +1,67 @@
+# ─── Workspace layout ────────────────────────────────────────────────────────
+packages:
+  - apps/*
+  - packages/*
+
+# ─── Supply-chain policy ─────────────────────────────────────────────────────
+# Hold any dependency version published less than 24h ago (minutes). Mitigates
+# the compromised-publish window of npm supply-chain attacks.
+minimumReleaseAge: 1440
+
+# pnpm blocks dependency lifecycle (install) scripts by default; the explicit
+# per-package approvals live in the allowBuilds section at the bottom of this
+# file (managed via `pnpm approve-builds`). Only native builds are approved.
+
+# ─── Catalog: single source of truth for shared dependency versions ──────────
+# All versions are EXACT pins (no ^/~ ranges) — upgrades are intentional,
+# human-reviewed catalog edits, never a side effect of `pnpm install`.
+catalog:
+  # language / schema
+  typescript: 5.9.3
+  zod: 4.4.3
+  tsx: 4.22.4
+  "@types/node": 24.13.0
+
+  # testing
+  vitest: 4.1.8
+
+  # release / change management
+  "@changesets/cli": 2.31.0
+  "@changesets/changelog-git": 0.2.1
+
+  # web / ui
+  next: 16.0.7
+  react: 19.2.1
+  react-dom: 19.2.1
+  "@types/react": 19.2.16
+  "@types/react-dom": 19.2.3
+  tailwindcss: 4.3.0
+  "@tailwindcss/postcss": 4.3.0
+  "@tailwindcss/typography": 0.5.19
+  mermaid: 11.15.0
+  react-markdown: 10.1.0
+
+  # data
+  drizzle-orm: 0.44.7
+  drizzle-kit: 0.31.10
+  better-sqlite3: 12.10.0
+  "@types/better-sqlite3": 7.6.13
+
+  # ai
+  ai: 5.0.196
+  "@ai-sdk/anthropic": 2.0.80
+  "@deepgram/sdk": 3.13.0
+
+  # discord
+  discord.js: 14.26.4
+  "@discordjs/voice": 0.19.2
+  "@discordjs/opus": 0.10.0
+  prism-media: 1.3.5
+  "@noble/ciphers": 1.3.0   # voice packet encryption (pure JS — no native build)
+  "@snazzah/davey": 0.1.11  # DAVE (Discord E2EE voice protocol) support for @discordjs/voice
+
+allowBuilds:
+  '@discordjs/opus': true # native Opus codec (prebuilt binary or node-gyp)
+  better-sqlite3: true # native SQLite bindings (prebuilt binary or node-gyp)
+  esbuild: false # works without its install script via optional platform packages
+  sharp: false              # ships prebuilt platform packages; install script not needed

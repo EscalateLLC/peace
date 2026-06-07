@@ -1,0 +1,26 @@
+{
+  "name": "@peace/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peace/adapters": "workspace:*",
+    "@peace/ai": "workspace:*",
+    "@peace/core": "workspace:*",
+    "@peace/db": "workspace:*",
+    "@peace/logger": "workspace:*",
+    "@peace/pipeline": "workspace:*"
+  },
+  "devDependencies": {
+    "@peace/config-presets": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

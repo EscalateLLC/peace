@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+out/
+.next/
+*.tsbuildinfo
+
+# local data (SQLite lives outside git)
+*.db
+*.db-wal
+*.db-shm
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs / coverage
+.logs/
+coverage/
+*.log
+
+# os / editor
+.DS_Store
+Thumbs.db
+
+.claude
+agent/
+/internal

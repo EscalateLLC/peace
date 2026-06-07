@@ -1,0 +1,51 @@
+{
+  "name": "peace",
+  "version": "0.1.0",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "packageManager": "pnpm@11.0.6",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @peace/web dev",
+    "bot": "pnpm --filter @peace/bot-discord dev",
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:styles": "stylelint \"**/*.css\"",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "changeset": "changeset",
+    "changeset:status": "changeset status",
+    "version-packages": "node scripts/version-packages.mjs",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/changelog-git": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@eslint/compat": "1.4.1",
+    "@eslint/js": "9.39.4",
+    "@next/eslint-plugin-next": "16.0.7",
+    "eslint": "9.39.4",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "eslint-plugin-react-refresh": "0.4.26",
+    "globals": "16.5.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.4.0",
+    "stylelint": "16.26.1",
+    "stylelint-config-standard": "38.0.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "8.60.1"
+  },
+  "lint-staged": {
+    "**/*.{js,mjs,cjs,jsx,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "**/*.css": [
+      "stylelint --fix"
+    ]
+  }
+}

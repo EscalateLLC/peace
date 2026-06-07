@@ -1,0 +1,28 @@
+# Enforces the changeset rule on PRs once this repo has a GitHub remote.
+# Mirrors the local pre-commit gate: changes under apps/ or packages/ require a
+# changeset (empty changesets satisfy it). Inert until pushed to GitHub.
+name: changesets
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # changeset status diffs against the merge base
+
+      - uses: pnpm/action-setup@v4 # reads version from packageManager field
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Require a changeset for package changes
+        run: pnpm exec changeset status --since=origin/main

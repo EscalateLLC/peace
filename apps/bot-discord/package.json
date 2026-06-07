@@ -1,0 +1,34 @@
+{
+  "name": "@peace/bot-discord",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@discordjs/opus": "catalog:",
+    "@discordjs/voice": "catalog:",
+    "@noble/ciphers": "catalog:",
+    "@snazzah/davey": "catalog:",
+    "@peace/adapters": "workspace:*",
+    "@peace/ai": "workspace:*",
+    "@peace/core": "workspace:*",
+    "@peace/db": "workspace:*",
+    "@peace/logger": "workspace:*",
+    "@peace/pipeline": "workspace:*",
+    "@peace/transcription": "workspace:*",
+    "discord.js": "catalog:",
+    "prism-media": "catalog:"
+  },
+  "devDependencies": {
+    "@peace/config-presets": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

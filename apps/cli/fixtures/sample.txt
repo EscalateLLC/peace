@@ -1,0 +1,28 @@
+# Fixture: product/engineering sync about launching a customer feedback portal
+[00:02] Maya: Okay, we have thirty minutes. Goal today is to decide how we ship the customer feedback portal for the Q3 launch.
+[00:11] Dev: Quick recap first. The portal lets customers submit feature requests, vote on them, and see roadmap status. Backend is mostly done.
+[00:24] Maya: What's left on the backend?
+[00:28] Dev: Rate limiting on the submission endpoint and the moderation queue. Two weeks, roughly.
+[00:36] Priya: Design-wise the voting flow is final, but the roadmap view still has two variants. I need a call on cards versus timeline today.
+[00:48] Maya: Let's look at the data. Which one tested better?
+[00:53] Priya: Timeline won the usability study, seven of nine participants found status faster. Cards looked prettier but people got lost.
+[01:05] Maya: Then timeline it is. Decision made, roadmap view ships as the timeline variant.
+[01:12] Priya: Great, I'll finalize the timeline specs by Friday and hand off to Dev.
+[01:18] Dev: Works. One risk though, the moderation queue needs a spam classifier and we haven't picked one. Build versus buy again.
+[01:29] Sam: Legal flag from me, if we buy, the vendor processes customer text, so we need a DPA review. That took six weeks last time.
+[01:41] Maya: Six weeks kills Q3. Can we launch with manual moderation and defer the classifier?
+[01:48] Dev: Honestly yes, volume projections are under a hundred submissions a day at launch. Manual is fine for a quarter.
+[01:57] Maya: Okay, decision, we launch with manual moderation and revisit the classifier in Q4. Sam, no vendor review needed for launch then.
+[02:08] Sam: Agreed, but I still need to update the privacy policy for the new data we collect. I'll have a draft to Maya by next Wednesday.
+[02:18] Maya: Noted. Dev, who staffs the manual moderation queue?
+[02:24] Dev: Unclear. Support team is stretched. That's an open question, maybe we rotate it inside engineering for the first month.
+[02:34] Maya: Leave it open, I'll raise staffing with Jordan after this. What about the rate limiting?
+[02:42] Dev: I'll have rate limiting done by end of next sprint. It blocks the public beta.
+[02:49] Priya: Speaking of beta, do we have a list of design partners for early access? I want feedback on the timeline view before GA.
+[02:58] Maya: We have eleven customers who opted into betas. Priya, can you own recruiting five of them for early access?
+[03:07] Priya: Yes, I'll send invites once the specs are locked, so week after next.
+[03:14] Sam: One more thing, the portal exposes feature names from our internal tracker. We should scrub codenames before they render publicly.
+[03:25] Dev: Good catch. I'll add a display-name mapping layer. Small task, I'll fold it into the moderation work.
+[03:33] Maya: Summarizing then. Timeline view, manual moderation for launch, classifier deferred to Q4. Dev owns rate limiting and the codename scrubbing, Priya owns specs Friday and beta recruiting, Sam owns the privacy policy draft Wednesday. Staffing for moderation stays open with Jordan.
+[03:52] Dev: One thing we didn't cover, pricing tier gating. Does free tier get voting?
+[03:58] Maya: Out of scope today, park it for the pricing review next month.
