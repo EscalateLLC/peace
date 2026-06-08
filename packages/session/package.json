@@ -1,0 +1,26 @@
+{
+  "name": "@peace/session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@peace/adapters": "workspace:*",
+    "@peace/core": "workspace:*",
+    "@peace/db": "workspace:*",
+    "@peace/logger": "workspace:*",
+    "@peace/transcription": "workspace:*"
+  },
+  "devDependencies": {
+    "@peace/config-presets": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
