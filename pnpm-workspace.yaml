@@ -52,6 +52,10 @@ catalog:
   "@ai-sdk/anthropic": 2.0.80
   "@deepgram/sdk": 3.13.0
 
+  # realtime transport (D6 — pure JS, no install scripts)
+  ws: 8.21.0
+  "@types/ws": 8.18.1
+
   # discord
   discord.js: 14.26.4
   "@discordjs/voice": 0.19.2

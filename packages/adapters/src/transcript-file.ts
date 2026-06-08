@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { conversationEventSchema, type ConversationEvent, type ConversationEventStream } from '@peace/core';
+import { conversationEventSchema, speakerId, type ConversationEvent, type ConversationEventStream } from '@peace/core';
 
 /**
  * Parses plain-text transcripts into ConversationEvents.
@@ -40,15 +40,21 @@ export function parseTranscript (content: string, meetingId: string): Conversati
 
     cursor = tEnd + 500;
     events.push(conversationEventSchema.parse({
-      id          : randomUUID(),
+      id: randomUUID(),
       meetingId,
-      speakerId   : `user:${speaker.trim().toLowerCase()}`,
+
+      // The `user:` namespace is grandfathered from MVP1 — persisted rows
+      // key speaker color/labels on it, so it must never change.
+      speakerId   : speakerId('user', speaker.trim().toLowerCase()),
       speakerLabel: speaker.trim(),
       text        : text.trim(),
       tStart,
       tEnd,
       confidence  : 1,
-      source      : 'transcript-file'
+      source      : {
+        platform: 'upload',
+        medium  : 'text'
+      }
     }));
   }
 

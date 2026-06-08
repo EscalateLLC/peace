@@ -15,8 +15,11 @@ describe('parseTranscript', () => {
     expect(events[0]).toMatchObject({
       speakerLabel: 'Alice',
       tStart      : 5000,
-      source      : 'transcript-file',
-      confidence  : 1
+      source      : {
+        platform: 'upload',
+        medium  : 'text'
+      },
+      confidence: 1
     });
 
     // Untimestamped line lands after the previous one.

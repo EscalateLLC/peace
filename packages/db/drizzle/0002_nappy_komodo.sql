@@ -1,0 +1,1 @@
+ALTER TABLE `meetings` ADD `voice_channel_id` text;

@@ -27,7 +27,10 @@ insertSegments(db, [{
   tStart      : 0,
   tEnd        : 2500,
   confidence  : 1,
-  source      : 'transcript-file'
+  source      : {
+    platform: 'upload',
+    medium  : 'text'
+  }
 }]);
 
 const artifact = insertArtifact(db, {

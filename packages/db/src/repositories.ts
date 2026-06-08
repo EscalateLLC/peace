@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, gt, max } from 'drizzle-orm';
-import type {
-  ActionItem,
-  Artifact,
-  ArtifactType,
-  ConversationEvent,
-  Decision,
-  Meeting,
-  MeetingPlatform
+import {
+  flattenConversationSource,
+  parseConversationSource,
+  type ActionItem,
+  type Artifact,
+  type ArtifactType,
+  type ConversationEvent,
+  type Decision,
+  type Meeting,
+  type MeetingPlatform
 } from '@peace/core';
 import type { PeaceDb } from './client';
 import { actionItems, artifacts, decisions, meetings, transcriptSegments } from './schema';
@@ -23,19 +25,28 @@ export interface CreateMeetingInput {
 
 export function createMeeting (db: PeaceDb, input: CreateMeetingInput): Meeting {
   const meeting: Meeting = {
-    id         : randomUUID(),
-    title      : input.title,
-    platform   : input.platform,
-    status     : 'live',
-    startedAt  : input.startedAt,
-    endedAt    : null,
-    externalRef: input.externalRef ?? null
+    id            : randomUUID(),
+    title         : input.title,
+    platform      : input.platform,
+    status        : 'live',
+    startedAt     : input.startedAt,
+    endedAt       : null,
+    externalRef   : input.externalRef ?? null,
+    voiceChannelId: null
   };
 
   db.insert(meetings).values(meeting)
     .run();
 
   return meeting;
+}
+
+/** Persist the voice channel the bot is attached to (for restart auto-rejoin). */
+export function setMeetingVoiceChannel (db: PeaceDb, id: string, voiceChannelId: string | null): void {
+  db.update(meetings)
+    .set({ voiceChannelId })
+    .where(eq(meetings.id, id))
+    .run();
 }
 
 export function getMeeting (db: PeaceDb, id: string): Meeting | null {
@@ -64,12 +75,33 @@ export function updateMeetingStatus (db: PeaceDb, id: string, status: Meeting['s
 
 // ─── Transcript segments ─────────────────────────────────────────────────────
 
+type SegmentRow = typeof transcriptSegments.$inferSelect;
+
+/** Structured source ↔ columns. Reads prefer the structured columns and fall
+ *  back to deriving from the legacy flat `source` for pre-backfill rows. */
+function rowToEvent (row: SegmentRow): ConversationEvent {
+  const { source, platform, medium, ...rest } = row;
+
+  return {
+    ...rest,
+    source: platform !== null && medium !== null ? {
+      platform,
+      medium
+    } : parseConversationSource(source)
+  };
+}
+
 export function insertSegments (db: PeaceDb, events: ConversationEvent[]): void {
   if (events.length === 0) {
     return;
   }
 
-  db.insert(transcriptSegments).values(events)
+  db.insert(transcriptSegments).values(events.map(event => ({
+    ...event,
+    source  : flattenConversationSource(event.source),
+    platform: event.source.platform,
+    medium  : event.source.medium
+  })))
     .run();
 }
 
@@ -77,7 +109,8 @@ export function getSegments (db: PeaceDb, meetingId: string): ConversationEvent[
   return db.select().from(transcriptSegments)
     .where(eq(transcriptSegments.meetingId, meetingId))
     .orderBy(asc(transcriptSegments.tStart))
-    .all();
+    .all()
+    .map(rowToEvent);
 }
 
 /** Segments after a watermark, for the live-polling workspace transcript. */
@@ -85,7 +118,8 @@ export function getSegmentsSince (db: PeaceDb, meetingId: string, afterTStart: n
   return db.select().from(transcriptSegments)
     .where(and(eq(transcriptSegments.meetingId, meetingId), gt(transcriptSegments.tStart, afterTStart)))
     .orderBy(asc(transcriptSegments.tStart))
-    .all();
+    .all()
+    .map(rowToEvent);
 }
 
 // ─── Artifacts (immutable versions) ──────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { conversationEventSchema, type ConversationEvent } from '@peace/core';
+import { conversationEventSchema, speakerId, type ConversationEvent } from '@peace/core';
 
 export interface DiscordTextInput {
   meetingId: string;
@@ -19,12 +19,15 @@ export function discordTextEvent (input: DiscordTextInput): ConversationEvent {
   return conversationEventSchema.parse({
     id          : randomUUID(),
     meetingId   : input.meetingId,
-    speakerId   : `discord:${input.authorId}`,
+    speakerId   : speakerId('discord', input.authorId),
     speakerLabel: input.authorLabel,
     text        : input.content,
     tStart      : input.offsetMs,
     tEnd        : input.offsetMs,
     confidence  : 1,
-    source      : 'discord-text'
+    source      : {
+      platform: 'discord',
+      medium  : 'text'
+    }
   });
 }

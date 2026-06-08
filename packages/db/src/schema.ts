@@ -1,9 +1,11 @@
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const meetings = sqliteTable('meetings', {
-  id      : text('id').primaryKey(),
-  title   : text('title').notNull(),
-  platform: text('platform', { enum: ['discord', 'upload'] }).notNull(),
+  id   : text('id').primaryKey(),
+  title: text('title').notNull(),
+
+  /** Open set — see KNOWN_PLATFORMS in @peace/core. New platforms must not need a migration. */
+  platform: text('platform').notNull(),
   status  : text('status', { enum: ['live', 'processing', 'complete', 'failed'] }).notNull(),
 
   /** Epoch milliseconds. */
@@ -11,7 +13,10 @@ export const meetings = sqliteTable('meetings', {
   endedAt  : integer('ended_at'),
 
   /** Platform-specific locator (e.g. discord guild/channel), if any. */
-  externalRef: text('external_ref')
+  externalRef: text('external_ref'),
+
+  /** Voice/audio channel the bot is attached to (for restart auto-rejoin); null if text-only. */
+  voiceChannelId: text('voice_channel_id')
 });
 
 export const transcriptSegments = sqliteTable('transcript_segments', {
@@ -27,7 +32,17 @@ export const transcriptSegments = sqliteTable('transcript_segments', {
   tEnd  : integer('t_end').notNull(),
 
   confidence: real('confidence').notNull(),
-  source    : text('source', { enum: ['discord-voice', 'discord-text', 'transcript-file'] }).notNull()
+
+  /**
+   * Transitional flat form (`${platform}-${medium}` / legacy MVP1 strings),
+   * dual-written alongside the structured columns below. Reads prefer the
+   * structured columns; this column gets dropped in a later migration.
+   */
+  source: text('source').notNull(),
+
+  /** Structured source (phase-2 platform×medium); nullable only for pre-backfill rows. */
+  platform: text('platform'),
+  medium  : text('medium', { enum: ['voice', 'text'] })
 }, table => [index('segments_meeting_time_idx').on(table.meetingId, table.tStart)]);
 
 /**

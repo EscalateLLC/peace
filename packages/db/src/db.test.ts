@@ -37,7 +37,10 @@ function segment (meetingId: string, overrides: Record<string, unknown> = {}) {
     tStart      : 0,
     tEnd        : 1000,
     confidence  : 0.9,
-    source      : 'transcript-file' as const,
+    source      : {
+      platform: 'upload',
+      medium  : 'text'
+    } as const,
     ...overrides
   };
 }
@@ -86,6 +89,49 @@ describe('meetings + segments', () => {
 
     expect(segments.map(item => item.text)).toEqual(['first', 'second']);
     expect(getSegmentsSince(db, meeting.id, 1000).map(item => item.text)).toEqual(['second']);
+  });
+
+  it('reads pre-migration rows (flat source, NULL platform/medium) via the legacy bridge', () => {
+    const meeting = createMeeting(db, {
+      title    : 'Legacy',
+      platform : 'discord',
+      startedAt: 1000
+    });
+
+    // Simulate an MVP1 row: flat source string, structured columns never backfilled.
+    db.$client.prepare(
+      `INSERT INTO transcript_segments
+         (id, meeting_id, speaker_id, speaker_label, text, t_start, t_end, confidence, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run('legacy-1', meeting.id, 'discord:42', 'Alice', 'old row', 0, 1000, 0.9, 'discord-voice');
+
+    const [event] = getSegments(db, meeting.id);
+
+    expect(event?.source).toEqual({
+      platform: 'discord',
+      medium  : 'voice'
+    });
+    expect(event?.speakerId).toBe('discord:42');
+  });
+
+  it('dual-writes the flat source column alongside the structured columns', () => {
+    const meeting = createMeeting(db, {
+      title    : 'Dual write',
+      platform : 'upload',
+      startedAt: 1000
+    });
+
+    insertSegments(db, [segment(meeting.id)]);
+
+    const row = db.$client.prepare(
+      'SELECT source, platform, medium FROM transcript_segments WHERE meeting_id = ?'
+    ).get(meeting.id) as { source: string; platform: string; medium: string };
+
+    expect(row).toEqual({
+      source  : 'upload-text',
+      platform: 'upload',
+      medium  : 'text'
+    });
   });
 
   it('updates meeting status with endedAt', () => {
