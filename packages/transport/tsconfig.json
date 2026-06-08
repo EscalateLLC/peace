@@ -1,0 +1,4 @@
+{
+  "extends": "@peace/config-presets/tsconfig.node.json",
+  "include": ["src"]
+}
