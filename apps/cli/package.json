@@ -14,7 +14,9 @@
     "@peace/core": "workspace:*",
     "@peace/db": "workspace:*",
     "@peace/logger": "workspace:*",
-    "@peace/pipeline": "workspace:*"
+    "@peace/pipeline": "workspace:*",
+    "@peace/session": "workspace:*",
+    "@peace/transport": "workspace:*"
   },
   "devDependencies": {
     "@peace/config-presets": "workspace:*",

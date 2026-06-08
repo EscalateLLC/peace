@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { parseTranscript } from '@peace/adapters';
+import { createTranscriptReplayAdapter, parseTranscript } from '@peace/adapters';
 import { getDefaultModel } from '@peace/ai';
-import { parseArtifactContent, type Artifact } from '@peace/core';
+import { parseArtifactContent, type Artifact, type ConversationEvent } from '@peace/core';
 import {
   createDb,
   createMeeting,
@@ -17,6 +17,8 @@ import {
 } from '@peace/db';
 import { createLogger, errorFields } from '@peace/logger';
 import { createAiGenerator, runPipeline } from '@peace/pipeline';
+import { createLiveSession } from '@peace/session';
+import { createDeltaServer, type DeltaServer } from '@peace/transport';
 
 loadEnv();
 
@@ -35,6 +37,10 @@ async function dispatch (): Promise<void> {
   switch (command) {
     case 'replay':
       replay(requireArg('replay <file>'));
+      break;
+
+    case 'replay-live':
+      await replayLive(requireArg('replay-live <file> [--ws] [--pace <ms>]'), args.slice(1));
       break;
 
     case 'run':
@@ -64,6 +70,9 @@ async function dispatch (): Promise<void> {
     default:
       console.log('peace cli');
       console.log('  replay <file>          parse a transcript file and print normalized ConversationEvents');
+      console.log('  replay-live <file> [--ws] [--pace <ms>]');
+      console.log('                         drive a transcript through the live session orchestrator;');
+      console.log('                         --ws streams deltas to the workspace, --pace spaces events out');
       console.log('  run <file> [title]     ingest a transcript, run the pipeline, persist artifacts');
       console.log('  show <meetingId>       print latest artifacts (with evidence) for a meeting');
       console.log('  meetings               list meetings');
@@ -75,6 +84,96 @@ async function dispatch (): Promise<void> {
 function replay (file: string): void {
   const events = parseTranscript(readFileSync(file, 'utf8'), 'replay');
 
+  printEvents(events);
+}
+
+/**
+ * The seam proof: a transcript file wrapped as a fake live platform, driven
+ * through the same session orchestrator (and database commit path) a real
+ * call uses. Output is line-identical to `replay` by construction.
+ *
+ * --ws hosts the realtime fan-out while replaying and --pace <ms> spaces the
+ * events out — together they live-stream a fixture into the workspace, which
+ * is both the demo and the transport test harness (realtime/04).
+ */
+async function replayLive (file: string, flags: string[] = []): Promise<void> {
+  const useWs = flags.includes('--ws');
+  const paceFlag = flags.indexOf('--pace');
+  const paceMs = paceFlag >= 0 ? Number(flags[paceFlag + 1]) : 0;
+
+  const db = createDb();
+
+  migrate(db);
+
+  const meeting = createMeeting(db, {
+    title    : `replay-live ${basename(file)}`,
+    platform : 'upload',
+    startedAt: Date.now()
+  });
+
+  let ws: DeltaServer | null = null;
+
+  if (useWs) {
+    ws = await createDeltaServer({ log });
+    console.log(`live fan-out: ws://localhost:${ws.port} — workspace: http://localhost:3000/meeting/${meeting.id}`);
+  }
+
+  log.info('session.replay_started', {
+    meetingId: meeting.id,
+    file,
+    ws       : useWs,
+    paceMs
+  });
+
+  const session = createLiveSession({
+    adapter: createTranscriptReplayAdapter({
+      content  : readFileSync(file, 'utf8'),
+      meetingId: meeting.id,
+      paceMs
+    }),
+    batchStt : null,
+    stt      : null,
+    db,
+    meetingId: meeting.id,
+    startedAt: Date.now(),
+    log,
+    onDelta  : delta => ws?.publish(delta)
+  });
+
+  const events: ConversationEvent[] = [];
+  const consuming = (async () => {
+    for await (const event of session.events()) {
+      events.push(event);
+    }
+  })();
+
+  await session.start();
+  await session.stop();
+  await consuming;
+  updateMeetingStatus(db, meeting.id, 'complete', Date.now());
+  ws?.publish({
+    type   : 'meeting.status',
+    payload: {
+      meetingId: meeting.id,
+      status   : 'complete'
+    }
+  });
+
+  printEvents(events);
+  log.info('session.replay_completed', {
+    meetingId: meeting.id,
+    events   : events.length
+  });
+  console.log(`\npersisted as meeting ${meeting.id} — run artifacts: pnpm --filter @peace/cli start show ${meeting.id}`);
+
+  if (ws) {
+    // Let the last frames flush before tearing the socket down.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await ws.close();
+  }
+}
+
+function printEvents (events: ConversationEvent[]): void {
   for (const event of events) {
     console.log(`${formatMs(event.tStart).padStart(8)}  ${event.speakerLabel.padEnd(12)} ${event.text}`);
   }

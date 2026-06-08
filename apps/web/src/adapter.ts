@@ -2,6 +2,7 @@
 
 import type { Artifact, ArtifactType } from '@peace/core';
 import type { WorkspaceData, WorkspaceDataAdapter } from '@peace/ui';
+import { createLiveSubscription } from './live-subscription';
 
 async function request<T> (path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
@@ -31,5 +32,11 @@ export const webAdapter: WorkspaceDataAdapter = {
     method : 'POST',
     headers: { 'content-type': 'application/json' },
     body   : JSON.stringify({ mermaid })
-  })
+  }),
+
+  subscribe: (meetingId, onDelta) => createLiveSubscription(
+    meetingId,
+    onDelta,
+    () => request<WorkspaceData>(`/api/meetings/${meetingId}`)
+  )
 };

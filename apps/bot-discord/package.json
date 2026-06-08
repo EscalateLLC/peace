@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "gen-offline-clip": "tsx scripts/gen-offline-clip.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -15,12 +16,17 @@
     "@noble/ciphers": "catalog:",
     "@snazzah/davey": "catalog:",
     "@peace/adapters": "workspace:*",
+    "@peace/agent": "workspace:*",
     "@peace/ai": "workspace:*",
     "@peace/core": "workspace:*",
     "@peace/db": "workspace:*",
     "@peace/logger": "workspace:*",
     "@peace/pipeline": "workspace:*",
+    "@peace/router": "workspace:*",
+    "@peace/session": "workspace:*",
     "@peace/transcription": "workspace:*",
+    "@peace/transport": "workspace:*",
+    "ai": "catalog:",
     "discord.js": "catalog:",
     "prism-media": "catalog:"
   },

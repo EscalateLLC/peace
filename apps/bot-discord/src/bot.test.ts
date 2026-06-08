@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { chunkMessage } from './chunk';
-import { parseIntent } from './commands';
+import { matchLeaveCommand, parseIntent } from './commands';
 
 describe('parseIntent', () => {
   it('maps natural phrasings to intents', () => {
@@ -14,6 +14,35 @@ describe('parseIntent', () => {
     expect(parseIntent('ok stop now')).toBe('stop');
     expect(parseIntent('help')).toBe('help');
     expect(parseIntent('hello there')).toBeNull();
+  });
+});
+
+describe('matchLeaveCommand', () => {
+  it('fires on wake-word-prefixed leave/stop commands', () => {
+    expect(matchLeaveCommand('peace, leave the call')).toBe(true);
+    expect(matchLeaveCommand('peace stop')).toBe(true);
+    expect(matchLeaveCommand('hey peace, head out')).toBe(true);
+    expect(matchLeaveCommand('peace get out of here')).toBe(true);
+    expect(matchLeaveCommand('peace, disconnect')).toBe(true);
+  });
+
+  it('fires on 2nd-person directives aimed at the bot, no wake word needed', () => {
+    expect(matchLeaveCommand('you can leave now')).toBe(true);
+    expect(matchLeaveCommand('can you disconnect please')).toBe(true);
+    expect(matchLeaveCommand('please head out')).toBe(true);
+    expect(matchLeaveCommand('you should take off')).toBe(true);
+  });
+
+  it('does NOT fire on a human announcing their own departure', () => {
+    expect(matchLeaveCommand('I have to leave the call')).toBe(false);
+    expect(matchLeaveCommand('we should leave the meeting soon')).toBe(false);
+    expect(matchLeaveCommand('I might head out early')).toBe(false);
+  });
+
+  it('does NOT fire on incidental uses of the verbs', () => {
+    expect(matchLeaveCommand('did you leave the door open?')).toBe(false);
+    expect(matchLeaveCommand('can you stop talking over me')).toBe(false); // "stop" ≠ leave without wake word
+    expect(matchLeaveCommand('let us leave that topic for later')).toBe(false);
   });
 });
 
