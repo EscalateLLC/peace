@@ -1,4 +1,4 @@
-import type { Artifact } from '@peace/core';
+import { parseSpeakerId, type Artifact } from '@peace/core';
 import {
   getSegments,
   insertArtifact,
@@ -20,8 +20,20 @@ export interface PipelineRunResult {
  * extraction → final summary + diagram → persist as new artifact versions
  * (immutable) + refresh the current-state action item / decision tables.
  */
+/** The bot's own (registered) turns are persisted for context but must never be mined into artifacts. */
+function isBotAuthored (speakerId: string): boolean {
+  try {
+    return parseSpeakerId(speakerId).namespace === 'peace';
+  } catch {
+    return false;
+  }
+}
+
 export async function runPipeline (db: PeaceDb, meetingId: string, generate: StructuredGenerator, now: () => number = Date.now): Promise<PipelineRunResult> {
-  const events = getSegments(db, meetingId);
+  // Peace's own spoken turns ground the conversational agent (they're in the
+  // transcript) but are excluded from extraction — peace must never "decide"
+  // things or assign itself action items (router/06 register-or-discard).
+  const events = getSegments(db, meetingId).filter(event => !isBotAuthored(event.speakerId));
 
   if (events.length === 0) {
     throw new Error(`meeting ${meetingId} has no transcript segments`);

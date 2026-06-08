@@ -20,7 +20,10 @@ function makeEvents (count: number, meetingId = 'meeting-1'): ConversationEvent[
     tStart      : index * 2000,
     tEnd        : index * 2000 + 1500,
     confidence  : 1,
-    source      : 'transcript-file' as const
+    source      : {
+      platform: 'upload',
+      medium  : 'text'
+    } as const
   }));
 }
 
@@ -223,5 +226,48 @@ describe('runPipeline', () => {
     const { generate } = fakeGenerator();
 
     await expect(runPipeline(db, meeting.id, generate)).rejects.toThrow(/no transcript segments/u);
+  });
+
+  it('excludes peace\'s own turns from extraction (they ground the agent, not the artifacts)', async () => {
+    const meeting = createMeeting(db, {
+      title    : 'With bot turns',
+      platform : 'upload',
+      startedAt: 0
+    });
+    const human = makeEvents(3, meeting.id);
+    const botTurn = {
+      ...human[0]!,
+      id          : 'bot-seg',
+      speakerId   : 'peace:bot',
+      speakerLabel: 'peace',
+      text        : 'I think we should ship Friday and defer the classifier.',
+      tStart      : 9000,
+      tEnd        : 11000
+    };
+
+    insertSegments(db, [...human, botTurn]);
+
+    const { generate, calls } = fakeGenerator();
+
+    await runPipeline(db, meeting.id, generate, () => 42);
+
+    // The bot's words never reach the model (no extraction/summary/diagram prompt contains them).
+    const prompts = calls.map(call => call.prompt).join('\n');
+
+    expect(prompts).not.toContain('defer the classifier');
+
+    // A meeting that is ONLY bot turns has nothing to extract.
+    const botOnly = createMeeting(db, {
+      title    : 'Bot only',
+      platform : 'upload',
+      startedAt: 0
+    });
+
+    insertSegments(db, [{
+      ...botTurn,
+      id       : 'bot-seg-2',
+      meetingId: botOnly.id
+    }]);
+    await expect(runPipeline(db, botOnly.id, generate)).rejects.toThrow(/no transcript segments/u);
   });
 });

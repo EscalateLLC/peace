@@ -13,6 +13,9 @@ out/
 *.db-wal
 *.db-shm
 
+# generated audio assets (regenerate via pnpm --filter @peace/bot-discord gen-offline-clip)
+*.pcm
+
 # env / secrets
 .env
 .env.*
@@ -28,5 +31,6 @@ coverage/
 Thumbs.db
 
 .claude
-agent/
+# root-level agent scratch dir only — must NOT match packages/agent
+/agent/
 /internal
