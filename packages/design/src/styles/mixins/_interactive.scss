@@ -1,0 +1,34 @@
+@use 'surface';
+@use 'transition';
+@use 'highlight';
+@use 'focus';
+
+// The full interaction recipe in one include: a resting themed surface that lights
+// on hover, shows the theme's hard focus ring for keyboard users, and stays lit
+// when selected. Every state is driven by the --peace-* interaction tokens, so
+// swapping the theme changes the whole interaction *language* (tron's neon glow vs
+// dreadnought's heavy amber edge), not just the palette. Want only the resting
+// container? Use `surface()` directly. Parameters:
+//   $bg        resting background                              (default: panel)
+//   $size      corner-size token                               (sm | md | lg)
+//   $selected  selector(s) for the selected state, relative to the element
+//   $props     transition-property list the states animate through
+@mixin interactive(
+  $bg: var(--peace-panel),
+  $size: md,
+  $selected: '&[data-selected], &[aria-selected="true"], &.is-selected',
+  $props: (background-color, border-color, box-shadow, transform)
+) {
+  @include surface.surface($bg, $size);
+  @include transition.transition($props);
+
+  &:hover {
+    @include highlight.highlight-hover;
+  }
+
+  @include focus.focus-ring;
+
+  #{$selected} {
+    @include highlight.highlight-selected;
+  }
+}
