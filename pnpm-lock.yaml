@@ -280,6 +280,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@peace/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@peace/ai':
         specifier: workspace:*
         version: link:../../packages/ai

@@ -246,6 +246,8 @@ function buildFlowRows (mermaid: string | null): FlowRow[] {
   return rows;
 }
 
+type AskResult = { kind: 'speak'; text: string } | { kind: 'silent'; reason: string };
+
 export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
   const ws = useWorkspace(meetingId, adapter);
   const { expanded, closing, openExpand, dock } = useExpand();
@@ -490,6 +492,21 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     });
   }, [zoom, diagramSource, ws]);
 
+  const askPeace = useCallback(async (query: string): Promise<AskResult> => {
+    const res = await fetch(`/api/meetings/${meetingId}/ask`, {
+      method : 'POST',
+      headers: { 'content-type': 'application/json' },
+      body   : JSON.stringify({ query })
+    });
+    const json = await res.json().catch(() => ({})) as AskResult & { error?: string };
+
+    if (!res.ok) {
+      throw new Error(json.error ?? `peace is unavailable (${res.status})`);
+    }
+
+    return json;
+  }, [meetingId]);
+
   const openNode = useCallback((node: DiagramNode) => {
     const evidenceSet = new Set(node.evidence);
     const linked = items.filter(it => it.sourceSegmentIds.some(segId => evidenceSet.has(segId)));
@@ -506,9 +523,10 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
           zoom.clear();
         }}
         onEdit={openDiagramEdit}
-        onOpenItem={openItem} />
+        onOpenItem={openItem}
+        onAsk={askPeace} />
     });
-  }, [zoom, segById, ws, openDiagramEdit, items, openItem]);
+  }, [zoom, segById, ws, openDiagramEdit, items, openItem, askPeace]);
 
   if (!data) {
     return (
@@ -957,13 +975,67 @@ function ItemDetail ({ item, evidence }: { item: ArtifactItem; evidence: Convers
   );
 }
 
-function NodeDetail ({ node, linked, evidence, onHighlight, onEdit, onOpenItem }: {
+// Ask the conversational agent a question about this node, over the meeting
+// transcript. The response (or a "stayed silent") renders inline below the input.
+function AskPeace ({ node, onAsk }: { node: DiagramNode; onAsk: (query: string) => Promise<AskResult> }) {
+  const [draft, setDraft] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [answer, setAnswer] = useState<AskResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = () => {
+    const q = draft.trim();
+
+    if (!q || asking) {
+      return;
+    }
+
+    setAsking(true);
+    setError(null);
+    setAnswer(null);
+    onAsk(`Regarding the workflow step "${node.label}": ${q}`)
+      .then(setAnswer)
+      .catch((askError: unknown) => setError(askError instanceof Error ? askError.message : 'peace is unavailable'))
+      .finally(() => setAsking(false));
+  };
+
+  return (
+    <div className="dw-modal-sec dw-ask">
+      <span className="dw-modal-h">Ask peace</span>
+      <div className="dw-ask-row">
+        <input
+          className="dw-ask-input"
+          value={draft}
+          placeholder="Ask peace about this step…"
+          disabled={asking}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              submit();
+            }
+          }} />
+        <button
+          type="button"
+          className="dw-act dw-ask-send"
+          disabled={asking || draft.trim().length === 0}
+          onClick={submit}>{asking ? 'Asking…' : 'Ask'}</button>
+      </div>
+      {error && <p className="dw-ask-error">{error}</p>}
+      {answer?.kind === 'speak' && <p className="dw-ask-answer">{answer.text}</p>}
+      {answer?.kind === 'silent' && <p className="dw-empty">peace stayed silent on this one.</p>}
+    </div>
+  );
+}
+
+function NodeDetail ({ node, linked, evidence, onHighlight, onEdit, onOpenItem, onAsk }: {
   node: DiagramNode;
   linked: ArtifactItem[];
   evidence: ConversationEvent[];
   onHighlight: () => void;
   onEdit: () => void;
   onOpenItem: (it: ArtifactItem) => void;
+  onAsk: (query: string) => Promise<AskResult>;
 }) {
   return (
     <div className="dw-modal">
@@ -978,12 +1050,10 @@ function NodeDetail ({ node, linked, evidence, onHighlight, onEdit, onOpenItem }
           type="button"
           className="dw-act"
           onClick={onEdit}>✎ Edit diagram</button>
-        <button
-          type="button"
-          className="dw-act"
-          disabled
-          title="The conversational agent isn't wired to this action yet">✦ Ask peace</button>
       </div>
+      <AskPeace
+        node={node}
+        onAsk={onAsk} />
       {linked.length > 0 && (
         <div className="dw-modal-sec">
           <span className="dw-modal-h">Linked items · {linked.length}</span>
