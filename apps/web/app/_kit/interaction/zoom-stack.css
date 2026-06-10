@@ -17,7 +17,7 @@
   inset: 0;
   border: 0;
   padding: 0;
-  background: oklch(0% 0 0deg / 50%);
+  background: var(--peace-backdrop, oklch(0% 0 0deg / 50%));
   backdrop-filter: blur(4px);
   cursor: zoom-out;
   animation: pk-zoom-fade 200ms ease both;
@@ -31,9 +31,10 @@
   overflow: auto;
   background: var(--pk-panel);
   color: var(--pk-ink);
-  border: 1px solid var(--pk-line);
-  border-radius: 18px;
-  box-shadow: 0 40px 120px -30px oklch(0% 0 0deg / 85%);
+  border: var(--peace-border-width, 1px) solid var(--pk-line);
+  border-radius: var(--peace-corner-radius-lg);
+  clip-path: var(--peace-corner-clip-lg);
+  box-shadow: var(--peace-shadow-modal);
   font-family: var(--pk-font-sans, system-ui, sans-serif);
   animation: pk-zoom-in 320ms var(--pk-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
   transition: transform 240ms var(--pk-ease, ease), filter 240ms;

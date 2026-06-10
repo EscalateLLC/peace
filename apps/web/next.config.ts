@@ -10,7 +10,7 @@ try {
 
 const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source; Next transpiles them.
-  transpilePackages: ['@peace/ui', '@peace/core', '@peace/db', '@peace/pipeline', '@peace/ai'],
+  transpilePackages: ['@peace/ui', '@peace/core', '@peace/db', '@peace/pipeline', '@peace/ai', '@peace/design'],
 
   // Native module stays external to the server bundle.
   serverExternalPackages: ['better-sqlite3']

@@ -1,0 +1,9 @@
+// Runtime corner — bevel ↔ radius ↔ square in ONE mixin (the keystone).
+// Theme mode can't be a compile-time @if (it's a runtime var), so each theme sets
+// BOTH vars per size: the active one carries the value, the other is its no-op
+// (clip → none, radius → 0). Tron sets the clip (angled bevel); cloud sets a
+// radius (soft); confluence sets a tiny radius (near-square).
+@mixin corner($size: md) {
+  border-radius: var(--peace-corner-radius-#{$size});
+  clip-path: var(--peace-corner-clip-#{$size});
+}

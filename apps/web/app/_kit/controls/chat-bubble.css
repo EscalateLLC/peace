@@ -10,32 +10,46 @@
   text-align: left;
   padding: 8px 11px;
   border: 0;
-  border-left: 2px solid transparent;
+  border-left: var(--peace-border-width-accent, 2px) solid transparent;
   background: transparent;
   cursor: inherit;
   transform-origin: left center;
-  transition: background 150ms, border-color 150ms, transform 170ms var(--pk-ease, ease);
+  transition:
+    background var(--peace-dur-1, 150ms) var(--pk-ease, ease),
+    border-color var(--peace-dur-1, 150ms) var(--pk-ease, ease),
+    box-shadow calc(var(--peace-dur-2, 170ms) * var(--peace-motion-scale, 1)) var(--pk-ease, ease),
+    transform calc(var(--peace-dur-2, 170ms) * var(--peace-motion-scale, 1)) var(--pk-ease, ease);
   font-family: var(--pk-font-sans, system-ui, sans-serif);
 }
 
+/* Hover / focus / selected ride the theme's interaction recipe — the glow, the
+   hard focus border, and the move all change with the theme. */
 .pk-bubble:hover {
-  background: color-mix(in oklch, var(--pk-accent) 8%, transparent);
-  border-left-color: color-mix(in oklch, var(--pk-accent) 40%, transparent);
+  background: var(--peace-hover-bg);
+  border-left-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+  transform: var(--peace-hover-lift);
+}
+
+.pk-bubble:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
 }
 
 .pk-bubble[data-selected] {
-  background: color-mix(in oklch, var(--pk-accent) 14%, transparent);
-  border-left-color: var(--pk-accent);
+  background: var(--peace-selected-bg);
+  border-left-color: var(--peace-selected-border);
+  box-shadow: var(--peace-selected-glow);
 }
 
-/* Compact: zoom-for-visibility — the hovered message magnifies + lifts so it's
-   legible in a dense feed, without maximizing its surface. */
+/* Compact: zoom-for-visibility — the hovered message magnifies so it's legible in
+   a dense feed (its own move, overriding the theme lift); the glow stays themed. */
 .pk-bubble[data-density="compact"]:hover {
   transform: scale(1.035);
   position: relative;
   z-index: 2;
-  border-radius: 8px;
-  box-shadow: 0 12px 32px -18px oklch(0% 0 0deg / 78%);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
 }
 
 .pk-bubble__avatar { display: none; }
@@ -110,17 +124,18 @@
   max-width: 760px;
   padding: 14px;
   border-left: 0;
-  border-radius: 12px;
+  border-radius: var(--peace-corner-radius-md);
+  clip-path: var(--peace-corner-clip-md);
 }
 
 .pk-bubble[data-density="comfortable"]:hover {
-  background: color-mix(in oklch, var(--pk-accent) 6%, transparent);
+  background: var(--peace-hover-bg);
   border-left: 0;
 }
 
 .pk-bubble[data-density="comfortable"][data-selected] {
-  background: color-mix(in oklch, var(--pk-accent) 12%, transparent);
-  box-shadow: inset 3px 0 0 var(--pk-accent);
+  background: var(--peace-selected-bg);
+  box-shadow: inset 3px 0 0 var(--peace-selected-border), var(--peace-selected-glow);
   border-left: 0;
 }
 

@@ -1,0 +1,10 @@
+@use 'corner';
+
+// A themed surface: background + hairline border + the theme's corner treatment.
+// `$bg` / `$size` are overridable; defaults read the panel + md corner tokens.
+@mixin surface($bg: var(--peace-panel), $size: md) {
+  background: #{$bg};
+  border: var(--peace-border-width) solid var(--peace-line);
+
+  @include corner.corner($size);
+}

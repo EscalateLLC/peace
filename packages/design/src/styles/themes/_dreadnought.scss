@@ -1,0 +1,61 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Dreadnought — heavy industrial steel. Dark gunmetal, hazard-amber accent, hard
+// square corners, plated hard shadows (no glow), heavy mechanical motion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'sass:map';
+@use 'tron';
+
+$dreadnought: map.merge(tron.$tron, (
+  // gunmetal steel surfaces
+  'field': 'oklch(0.19 0.006 245)',
+  'panel': 'oklch(0.24 0.008 245)',
+  'raised': 'oklch(0.29 0.01 245)',
+  'backdrop': 'oklch(0.08 0.004 245 / 0.62)',
+  'line': 'oklch(0.7 0.018 245 / 0.3)',
+
+  // hazard amber + cold steel
+  'accent': 'oklch(0.72 0.15 58)',
+  'accent-2': 'oklch(0.72 0.03 230)',
+  'on-accent': 'oklch(0.16 0.01 245)',
+
+  // steel ink
+  'ink-strong': 'oklch(0.94 0.005 245)',
+  'ink': 'oklch(0.78 0.008 245)',
+  'ink-muted': 'oklch(0.58 0.01 245)',
+  'ink-faint': 'oklch(0.46 0.01 245)',
+
+  // hard square corners
+  'corner-radius-sm': '1px',
+  'corner-radius-md': '2px',
+  'corner-radius-lg': '2px',
+  'corner-clip-sm': 'none',
+  'corner-clip-md': 'none',
+  'corner-clip-lg': 'none',
+  'border-width': '1px',
+  'border-width-accent': '3px',
+
+  // plated, hard shadows — no neon
+  'shadow-focal': '0 2px 0 oklch(0 0 0 / 0.5), inset 0 1px 0 oklch(1 0 0 / 0.04)',
+  'shadow-drag': '0 24px 50px -18px oklch(0 0 0 / 0.85)',
+  'shadow-modal': '0 30px 80px -24px oklch(0 0 0 / 0.9)',
+  'shadow-lift': '0 8px 20px -10px oklch(0 0 0 / 0.7)',
+  'glow-accent': '0 0 0 1px color-mix(in oklch, var(--peace-accent) 55%, transparent)',
+
+  // heavy mechanical motion
+  'ease': 'cubic-bezier(0.3, 0, 0.2, 1)',
+  'motion-scale': '0.8',
+  'tracking-wide': '0.18em',
+  'tracking-flat': '0.08em',
+
+  // hard bar highlight
+  'highlight-style': 'bar',
+  'hover-bg': 'color-mix(in oklch, var(--peace-accent) 8%, transparent)',
+  'hover-border': 'color-mix(in oklch, var(--peace-accent) 60%, transparent)',
+  'hover-glow': 'inset 0 0 0 1px color-mix(in oklch, var(--peace-accent) 45%, transparent)',
+  'hover-lift': 'none',
+  'focus-ring': '0 0 0 3px var(--peace-accent)',
+  'selected-bg': 'color-mix(in oklch, var(--peace-accent) 14%, transparent)',
+  'selected-border': 'var(--peace-accent)',
+  'selected-glow': 'inset 0 0 0 2px color-mix(in oklch, var(--peace-accent) 55%, transparent)',
+));

@@ -1,0 +1,15 @@
+// Hover / selected highlight, themed via the highlight-* recipe tokens. A neon
+// theme paints accent-glow borders; a flat theme paints a soft tint or a side
+// bar — the component just asks for "hover" or "selected".
+@mixin highlight-hover {
+  background: var(--peace-hover-bg);
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+  transform: var(--peace-hover-lift);
+}
+
+@mixin highlight-selected {
+  background: var(--peace-selected-bg);
+  border-color: var(--peace-selected-border);
+  box-shadow: var(--peace-selected-glow);
+}

@@ -1,0 +1,68 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Bubble — playful, roundy, bouncy (casual mobile-game vibe). Bright candy light,
+// hot-pink accent, big pill radii, soft colored shadows, OVERSHOOT bounce motion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'sass:map';
+@use 'tron';
+
+$bubble: map.merge(tron.$tron, (
+  // bright candy light
+  'field': 'oklch(0.97 0.025 320)',
+  'panel': 'oklch(0.99 0.012 320)',
+  'raised': 'oklch(1 0 0)',
+  'backdrop': 'oklch(0.6 0.1 330 / 0.32)',
+  'line': 'oklch(0.6 0.08 330 / 0.2)',
+
+  // hot pink + bright cyan
+  'accent': 'oklch(0.66 0.21 350)',
+  'accent-2': 'oklch(0.78 0.15 200)',
+  'on-accent': 'oklch(1 0 0)',
+
+  // friendly dark ink
+  'ink-strong': 'oklch(0.34 0.06 330)',
+  'ink': 'oklch(0.46 0.06 330)',
+  'ink-muted': 'oklch(0.58 0.05 330)',
+  'ink-faint': 'oklch(0.7 0.04 330)',
+
+  // candy kind palette
+  'kind-decision': 'oklch(0.78 0.16 60)',
+  'kind-action': 'oklch(0.72 0.18 150)',
+  'kind-question': 'oklch(0.66 0.2 290)',
+  'kind-topic': 'oklch(0.7 0.16 200)',
+  'kind-outcome': 'oklch(0.66 0.21 350)',
+
+  // big bubbly radii
+  'corner-radius-sm': '12px',
+  'corner-radius-md': '20px',
+  'corner-radius-lg': '28px',
+  'corner-clip-sm': 'none',
+  'corner-clip-md': 'none',
+  'corner-clip-lg': 'none',
+  'border-width': '2px',
+  'border-width-accent': '3px',
+
+  // soft candy-colored shadows
+  'shadow-focal': '0 12px 34px -14px color-mix(in oklch, var(--peace-accent) 50%, transparent)',
+  'shadow-drag': '0 22px 50px -16px color-mix(in oklch, var(--peace-accent) 45%, transparent)',
+  'shadow-modal': '0 30px 70px -24px color-mix(in oklch, var(--peace-accent) 40%, transparent)',
+  'shadow-lift': '0 10px 24px -10px color-mix(in oklch, var(--peace-accent) 45%, transparent)',
+  'glow-accent': '0 6px 16px -6px color-mix(in oklch, var(--peace-accent) 55%, transparent)',
+
+  // BOUNCY overshoot motion
+  'ease': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  'motion-scale': '1.1',
+  'tracking-wide': '0.02em',
+  'tracking-flat': '0',
+
+  // bright tint highlight
+  'highlight-style': 'tint',
+  'hover-bg': 'color-mix(in oklch, var(--peace-accent) 12%, transparent)',
+  'hover-border': 'color-mix(in oklch, var(--peace-accent) 45%, transparent)',
+  'hover-glow': '0 8px 20px -6px color-mix(in oklch, var(--peace-accent) 45%, transparent)',
+  'hover-lift': 'scale(1.04)',
+  'focus-ring': '0 0 0 3px var(--peace-accent), 0 0 0 7px color-mix(in oklch, var(--peace-accent) 28%, transparent)',
+  'selected-bg': 'color-mix(in oklch, var(--peace-accent) 18%, transparent)',
+  'selected-border': 'var(--peace-accent)',
+  'selected-glow': '0 10px 24px -8px color-mix(in oklch, var(--peace-accent) 50%, transparent)',
+));

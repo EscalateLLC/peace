@@ -14,7 +14,7 @@
     "build": "pnpm -r build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:styles": "stylelint \"**/*.css\"",
+    "lint:styles": "stylelint \"**/*.{css,scss}\"",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "changeset": "changeset",
@@ -37,6 +37,7 @@
     "lint-staged": "16.4.0",
     "stylelint": "16.26.1",
     "stylelint-config-standard": "38.0.0",
+    "stylelint-config-standard-scss": "17.0.0",
     "typescript": "catalog:",
     "typescript-eslint": "8.60.1"
   },
@@ -44,7 +45,7 @@
     "**/*.{js,mjs,cjs,jsx,ts,tsx}": [
       "eslint --fix"
     ],
-    "**/*.css": [
+    "**/*.{css,scss}": [
       "stylelint --fix"
     ]
   }

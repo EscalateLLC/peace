@@ -1,0 +1,59 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Cloud — light, airy, sophisticated. Soft rounded corners (radius set, clip
+// off), gentle blue accent, soft drop-shadows (no neon), calm motion.
+// Merges from Tron and overrides the look + the structural feel knobs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'sass:map';
+@use 'tron';
+
+$cloud: map.merge(tron.$tron, (
+  // light surfaces
+  'field': 'oklch(0.975 0.005 250)',
+  'panel': 'oklch(0.995 0.003 250)',
+  'raised': 'oklch(1 0 0)',
+  'backdrop': 'oklch(0.5 0.03 250 / 0.3)',
+  'line': 'oklch(0.55 0.05 255 / 0.18)',
+
+  // soft blue accents
+  'accent': 'oklch(0.58 0.13 257)',
+  'accent-2': 'oklch(0.68 0.1 215)',
+  'on-accent': 'oklch(0.99 0.005 255)',
+
+  // dark ink on light
+  'ink-strong': 'oklch(0.27 0.02 260)',
+  'ink': 'oklch(0.4 0.02 260)',
+  'ink-muted': 'oklch(0.55 0.02 260)',
+  'ink-faint': 'oklch(0.68 0.015 260)',
+
+  // soft rounded corners — radius carries the value, clip is the no-op
+  'corner-radius-sm': '8px',
+  'corner-radius-md': '12px',
+  'corner-radius-lg': '18px',
+  'corner-clip-sm': 'none',
+  'corner-clip-md': 'none',
+  'corner-clip-lg': 'none',
+
+  // soft shadows, no glow
+  'shadow-focal': '0 10px 34px -14px oklch(0.5 0.06 255 / 0.4)',
+  'shadow-drag': '0 20px 56px -18px oklch(0.4 0.06 255 / 0.42)',
+  'shadow-modal': '0 30px 80px -28px oklch(0.4 0.06 255 / 0.42)',
+  'shadow-lift': '0 8px 24px -14px oklch(0.5 0.06 255 / 0.32)',
+  'glow-accent': '0 3px 12px -5px oklch(0.6 0.13 250 / 0.45)',
+
+  // calm motion + relaxed tracking
+  'ease': 'cubic-bezier(0.4, 0, 0.2, 1)',
+  'tracking-wide': '0.02em',
+  'tracking-flat': '0',
+
+  // soft tint highlights
+  'highlight-style': 'tint',
+  'hover-bg': 'color-mix(in oklch, var(--peace-accent) 8%, transparent)',
+  'hover-border': 'color-mix(in oklch, var(--peace-accent) 40%, transparent)',
+  'hover-glow': '0 0 0 4px color-mix(in oklch, var(--peace-accent) 12%, transparent), 0 8px 22px -8px color-mix(in oklch, var(--peace-accent) 40%, transparent)',
+  'hover-lift': 'translateY(-1px)',
+  'focus-ring': '0 0 0 2px var(--peace-accent)',
+  'selected-bg': 'color-mix(in oklch, var(--peace-accent) 15%, transparent)',
+  'selected-border': 'var(--peace-accent)',
+  'selected-glow': '0 6px 18px -8px color-mix(in oklch, var(--peace-accent) 40%, transparent)',
+));

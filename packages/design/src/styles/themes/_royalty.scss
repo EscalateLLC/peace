@@ -1,0 +1,67 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Royalty — regal gold + crimson on deep warm dark. Ornate gold filigree borders,
+// warm gold glow, cream ink, stately motion. Pairs with a serif display.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'sass:map';
+@use 'tron';
+
+$royalty: map.merge(tron.$tron, (
+  // deep warm dark
+  'field': 'oklch(0.17 0.025 28)',
+  'panel': 'oklch(0.21 0.03 28)',
+  'raised': 'oklch(0.26 0.035 30)',
+  'backdrop': 'oklch(0.1 0.03 28 / 0.62)',
+  'line': 'oklch(0.8 0.12 85 / 0.32)',
+
+  // gold + crimson
+  'accent': 'oklch(0.8 0.13 85)',
+  'accent-2': 'oklch(0.55 0.2 25)',
+  'on-accent': 'oklch(0.18 0.03 30)',
+
+  // warm cream ink
+  'ink-strong': 'oklch(0.95 0.02 85)',
+  'ink': 'oklch(0.84 0.025 80)',
+  'ink-muted': 'oklch(0.66 0.03 70)',
+  'ink-faint': 'oklch(0.52 0.04 60)',
+
+  // royal kind palette
+  'kind-decision': 'oklch(0.8 0.13 85)',
+  'kind-action': 'oklch(0.62 0.17 145)',
+  'kind-question': 'oklch(0.6 0.2 25)',
+  'kind-topic': 'oklch(0.88 0.04 85)',
+  'kind-outcome': 'oklch(0.6 0.05 40)',
+
+  // gentle ornate corners
+  'corner-radius-sm': '3px',
+  'corner-radius-md': '5px',
+  'corner-radius-lg': '8px',
+  'corner-clip-sm': 'none',
+  'corner-clip-md': 'none',
+  'corner-clip-lg': 'none',
+  'border-width-accent': '2px',
+
+  // gilt glow + deep shadow + inner gold rule (filigree)
+  'shadow-focal': '0 0 40px -22px var(--peace-accent), inset 0 0 0 1px color-mix(in oklch, var(--peace-accent) 22%, transparent)',
+  'shadow-drag': '0 26px 60px -20px oklch(0.05 0.02 30 / 0.85)',
+  'shadow-modal': '0 34px 100px -28px oklch(0.05 0.02 30 / 0.88)',
+  'shadow-lift': '0 10px 28px -14px oklch(0.05 0.02 30 / 0.7)',
+  'glow-accent': '0 0 22px -6px var(--peace-accent)',
+
+  // stately motion
+  'ease': 'cubic-bezier(0.33, 1, 0.4, 1)',
+  'motion-scale': '0.9',
+  'tracking-wide': '0.16em',
+  'tracking-flat': '0.04em',
+
+  // gilt glow highlight
+  'highlight-style': 'glow',
+  'hover-bg': 'color-mix(in oklch, var(--peace-accent) 10%, transparent)',
+  'hover-border': 'color-mix(in oklch, var(--peace-accent) 50%, transparent)',
+  'hover-glow': '0 0 20px -6px var(--peace-accent)',
+  'hover-lift': 'none',
+  'focus-ring': '0 0 0 2px var(--peace-accent), 0 0 0 5px color-mix(in oklch, var(--peace-accent) 30%, transparent)',
+  'selected-bg': 'color-mix(in oklch, var(--peace-accent) 16%, transparent)',
+  'selected-border': 'var(--peace-accent)',
+  'selected-glow': '0 0 22px -6px var(--peace-accent)',
+));

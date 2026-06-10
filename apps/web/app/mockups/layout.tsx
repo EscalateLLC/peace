@@ -1,5 +1,6 @@
 /* eslint-disable new-cap -- next/font factories are PascalCase by design */
 import type { ReactNode } from 'react';
+import { ThemeProvider, ThemeToggle } from '@peace/design';
 import {
   Fraunces,
   Hanken_Grotesk,
@@ -8,6 +9,7 @@ import {
   Sora,
   Unbounded
 } from 'next/font/google';
+import '@peace/design/styles';
 import '../_kit/theme.css';
 
 /*
@@ -57,8 +59,11 @@ const mono = JetBrains_Mono({
 
 export default function MockupsLayout ({ children }: { children: ReactNode }) {
   return (
-    <div className={`${hanken.variable} ${newsreader.variable} ${fraunces.variable} ${sora.variable} ${unbounded.variable} ${mono.variable} h-full`}>
-      {children}
-    </div>
+    <ThemeProvider>
+      <div className={`${hanken.variable} ${newsreader.variable} ${fraunces.variable} ${sora.variable} ${unbounded.variable} ${mono.variable} h-full`}>
+        {children}
+        <ThemeToggle className="fixed bottom-4 right-4 z-[2000] rounded-md border border-white/25 bg-black/60 px-3 py-1.5 font-mono text-xs uppercase tracking-widest text-white/85 backdrop-blur transition-colors hover:text-white" />
+      </div>
+    </ThemeProvider>
   );
 }

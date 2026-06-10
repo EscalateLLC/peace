@@ -1,0 +1,7 @@
+// Keyboard focus ring (themed). Use :focus-visible so it only shows for keyboard.
+@mixin focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--peace-focus-ring);
+  }
+}

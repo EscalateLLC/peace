@@ -1,0 +1,40 @@
+@use '../tokens/schema';
+@use 'tron';
+@use 'cloud';
+@use 'confluence';
+@use 'dreadnought';
+@use 'platinum';
+@use 'royalty';
+@use 'bubble';
+
+// The default look applies at :root (no attribute needed) and for [data-theme="tron"].
+// Each theme emits its full --peace-* set under its own [data-theme] selector, so a
+// runtime `data-theme` swap re-skins everything.
+:root,
+[data-theme='tron'] {
+  @include schema.emit(tron.$tron);
+}
+
+[data-theme='cloud'] {
+  @include schema.emit(cloud.$cloud);
+}
+
+[data-theme='confluence'] {
+  @include schema.emit(confluence.$confluence);
+}
+
+[data-theme='dreadnought'] {
+  @include schema.emit(dreadnought.$dreadnought);
+}
+
+[data-theme='platinum'] {
+  @include schema.emit(platinum.$platinum);
+}
+
+[data-theme='royalty'] {
+  @include schema.emit(royalty.$royalty);
+}
+
+[data-theme='bubble'] {
+  @include schema.emit(bubble.$bubble);
+}

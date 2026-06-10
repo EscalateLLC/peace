@@ -1,0 +1,9 @@
+// Authoring mixins — components @use this and compose token-driven recipes so a
+// theme change (via the --peace-* vars) re-skins everything. See `_corner` for
+// the runtime bevel↔radius↔square keystone.
+
+@forward 'corner';
+@forward 'transition';
+@forward 'surface';
+@forward 'highlight';
+@forward 'focus';

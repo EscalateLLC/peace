@@ -1,0 +1,7 @@
+// @peace/design — global styles entry. Import once at the app root via
+// `import '@peace/design/styles'`. Emits the `--peace-*` token contract
+// (per-theme [data-theme] blocks), then the base layer (reset, keyframes).
+// Components author against the tokens + the mixins in `mixins/`.
+
+@use 'themes';
+@use 'base';

@@ -1,0 +1,19 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// The themed root — apply to the app shell. Pulls field/ink/font from the active
+// theme's tokens so a theme swap re-skins the whole surface.
+.peace-root {
+  color: var(--peace-ink);
+  background: var(--peace-field);
+  font-family: var(--peace-font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --peace-motion-scale: 0;
+  }
+}

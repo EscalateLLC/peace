@@ -30,6 +30,9 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Playwright MCP scratch output (snapshots, screenshots)
+.playwright-mcp/
+
 .claude
 # root-level agent scratch dir only — must NOT match packages/agent
 /agent/

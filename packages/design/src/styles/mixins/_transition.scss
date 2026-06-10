@@ -1,0 +1,7 @@
+// Themed transition: duration token × the global motion-scale (0 = reduced
+// motion → instant), eased by the theme's primary easing.
+@mixin transition($props, $dur: 2) {
+  transition-property: #{$props};
+  transition-duration: calc(var(--peace-dur-#{$dur}) * var(--peace-motion-scale));
+  transition-timing-function: var(--peace-ease);
+}

@@ -1,0 +1,10 @@
+// The token contract. A theme is a flat map of token-name → value (values are
+// quoted strings so Sass never evaluates calc()/slashes/commas inside them);
+// `emit()` turns a map into `--peace-*` custom properties via interpolation
+// (which unquotes), so the runtime contract is always plain CSS variables.
+
+@mixin emit($tokens) {
+  @each $key, $value in $tokens {
+    --peace-#{$key}: #{$value};
+  }
+}

@@ -1,0 +1,59 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Confluence — business-professional. Flat, near-square corners, restrained blue,
+// minimal shadows + a side-bar highlight, quick-but-quiet motion. Light, neutral.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'sass:map';
+@use 'tron';
+
+$confluence: map.merge(tron.$tron, (
+  // neutral light surfaces
+  'field': 'oklch(0.985 0.002 250)',
+  'panel': 'oklch(1 0 0)',
+  'raised': 'oklch(0.975 0.002 250)',
+  'backdrop': 'oklch(0.3 0.01 260 / 0.4)',
+  'line': 'oklch(0.5 0.01 260 / 0.24)',
+
+  // corporate blue
+  'accent': 'oklch(0.5 0.17 264)',
+  'accent-2': 'oklch(0.58 0.1 250)',
+  'on-accent': 'oklch(1 0 0)',
+
+  // dark neutral ink
+  'ink-strong': 'oklch(0.24 0.01 262)',
+  'ink': 'oklch(0.36 0.01 262)',
+  'ink-muted': 'oklch(0.5 0.01 262)',
+  'ink-faint': 'oklch(0.62 0.008 262)',
+
+  // near-square corners
+  'corner-radius-sm': '3px',
+  'corner-radius-md': '3px',
+  'corner-radius-lg': '4px',
+  'corner-clip-sm': 'none',
+  'corner-clip-md': 'none',
+  'corner-clip-lg': 'none',
+
+  // flat, minimal elevation
+  'shadow-focal': '0 1px 3px oklch(0.3 0.02 262 / 0.18)',
+  'shadow-drag': '0 6px 16px -6px oklch(0.3 0.02 262 / 0.26)',
+  'shadow-modal': '0 12px 40px -16px oklch(0.3 0.02 262 / 0.3)',
+  'shadow-lift': '0 2px 6px -2px oklch(0.3 0.02 262 / 0.2)',
+  'glow-accent': '0 0 0 1px color-mix(in oklch, var(--peace-accent) 40%, transparent)',
+
+  // quick, restrained motion
+  'ease': 'cubic-bezier(0.4, 0, 0.2, 1)',
+  'motion-scale': '0.7',
+  'tracking-wide': '0',
+  'tracking-flat': '0',
+
+  // side-bar highlight
+  'highlight-style': 'bar',
+  'hover-bg': 'color-mix(in oklch, var(--peace-accent) 6%, transparent)',
+  'hover-border': 'color-mix(in oklch, var(--peace-accent) 35%, transparent)',
+  'hover-glow': '0 1px 3px oklch(0.3 0.02 262 / 0.16)',
+  'hover-lift': 'none',
+  'focus-ring': '0 0 0 2px var(--peace-accent)',
+  'selected-bg': 'color-mix(in oklch, var(--peace-accent) 11%, transparent)',
+  'selected-border': 'var(--peace-accent)',
+  'selected-glow': 'none',
+));

@@ -38,6 +38,7 @@ catalog:
   tailwindcss: 4.3.0
   "@tailwindcss/postcss": 4.3.0
   "@tailwindcss/typography": 0.5.19
+  sass: 1.100.0 # SCSS authoring for @peace/design (pure JS — no native build)
   mermaid: 11.15.0
   react-markdown: 10.1.0
 
@@ -61,11 +62,12 @@ catalog:
   "@discordjs/voice": 0.19.2
   "@discordjs/opus": 0.10.0
   prism-media: 1.3.5
-  "@noble/ciphers": 1.3.0   # voice packet encryption (pure JS — no native build)
-  "@snazzah/davey": 0.1.11  # DAVE (Discord E2EE voice protocol) support for @discordjs/voice
+  "@noble/ciphers": 1.3.0 # voice packet encryption (pure JS — no native build)
+  "@snazzah/davey": 0.1.11 # DAVE (Discord E2EE voice protocol) support for @discordjs/voice
 
 allowBuilds:
   '@discordjs/opus': true # native Opus codec (prebuilt binary or node-gyp)
+  '@parcel/watcher': false # sass's optional file-watcher (only for `sass --watch`; we compile via Next)
   better-sqlite3: true # native SQLite bindings (prebuilt binary or node-gyp)
   esbuild: false # works without its install script via optional platform packages
-  sharp: false              # ships prebuilt platform packages; install script not needed
+  sharp: false # ships prebuilt platform packages; install script not needed
