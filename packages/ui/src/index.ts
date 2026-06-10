@@ -1,5 +1,7 @@
 export * from './adapter';
 
+export * from './workspace-delta';
+
 export * from './format';
 
 export * from './evidence-chip';

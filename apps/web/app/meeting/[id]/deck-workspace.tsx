@@ -1,0 +1,466 @@
+'use client';
+
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import type { ActionItem, Artifact, ConversationEvent, Decision, KeyPoint, OpenQuestion } from '@peace/core';
+import { formatOffset, type WorkspaceDataAdapter } from '@peace/ui';
+import { ChatBubble, useExpand, useIntentGesture, useZoomStack, ZoomStack } from '../../_kit';
+import { useWorkspace } from './use-workspace';
+import { MermaidDiagram } from './mermaid-diagram';
+import { ThemeMenu } from '../../theme-menu';
+import './deck-workspace.css';
+
+type PanelId = 'comms' | 'workflow' | 'summary';
+const PANELS: { id: PanelId; title: string }[] = [
+  {
+    id   : 'comms',
+    title: 'Conversation'
+  },
+  {
+    id   : 'workflow',
+    title: 'Workflow'
+  },
+  {
+    id   : 'summary',
+    title: 'Summary'
+  }
+];
+
+const NOOP = () => undefined;
+
+/** Stable speaker color slot (0–7) from the speaker id; peace's own turns use the accent. */
+function speakerColor (speakerId: string): string {
+  if (speakerId.startsWith('peace:')) {
+    return 'var(--peace-accent)';
+  }
+
+  let hash = 0;
+
+  for (const ch of speakerId) {
+    hash = (hash * 31 + ch.codePointAt(0)!) % 8;
+  }
+
+  return `var(--peace-speaker-${hash})`;
+}
+
+function initials (label: string): string {
+  return label.split(/\s+/).map(w => w[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '··';
+}
+
+interface ArtifactItem {
+  id: string;
+  kind: 'decision' | 'action' | 'question' | 'point';
+  text: string;
+  sub?: string;
+  sourceSegmentIds: string[];
+  uncertain: boolean;
+}
+
+/** Flatten the typed artifacts into uniform cards for the summary panel. */
+function collectItems (artifacts: Artifact[]): ArtifactItem[] {
+  const out: ArtifactItem[] = [];
+  const byType = (t: string) => artifacts.find(a => a.type === t);
+
+  const decisions = byType('decisions');
+
+  if (decisions) {
+    (decisions.content as { items: Decision[] }).items.forEach((d, i) => out.push({
+      id              : `dec-${i}`,
+      kind            : 'decision',
+      text            : d.description,
+      sub             : d.rationale ?? undefined,
+      sourceSegmentIds: d.sourceSegmentIds,
+      uncertain       : d.uncertain
+    }));
+  }
+
+  const actions = byType('action-items');
+
+  if (actions) {
+    (actions.content as { items: ActionItem[] }).items.forEach((a, i) => out.push({
+      id              : `act-${i}`,
+      kind            : 'action',
+      text            : a.description,
+      sub             : [a.assignee, a.dueDate].filter(Boolean).join(' · ') || undefined,
+      sourceSegmentIds: a.sourceSegmentIds,
+      uncertain       : a.uncertain
+    }));
+  }
+
+  const questions = byType('open-questions');
+
+  if (questions) {
+    (questions.content as { items: OpenQuestion[] }).items.forEach((q, i) => out.push({
+      id              : `q-${i}`,
+      kind            : 'question',
+      text            : q.question,
+      sourceSegmentIds: q.sourceSegmentIds,
+      uncertain       : q.uncertain
+    }));
+  }
+
+  const points = byType('key-points');
+
+  if (points) {
+    (points.content as { items: KeyPoint[] }).items.forEach((p, i) => out.push({
+      id              : `kp-${i}`,
+      kind            : 'point',
+      text            : p.point,
+      sourceSegmentIds: p.sourceSegmentIds,
+      uncertain       : p.uncertain
+    }));
+  }
+
+  return out;
+}
+
+const KIND_GLYPH: Record<ArtifactItem['kind'], string> = {
+  decision: '◆',
+  action  : '▸',
+  question: '◇',
+  point   : '▪'
+};
+
+export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
+  const ws = useWorkspace(meetingId, adapter);
+  const { expanded, closing, openExpand, dock } = useExpand();
+  const zoom = useZoomStack();
+
+  // Cross-link: the segment ids currently lit (from hover or a clicked evidence chip).
+  const [hoverSegs, setHoverSegs] = useState<readonly string[]>([]);
+  const litSegs = useMemo(() => new Set([...ws.highlightedIds, ...hoverSegs]), [ws.highlightedIds, hoverSegs]);
+
+  const gesture = useIntentGesture({
+    frameInset         : 0,
+    isExpanded         : id => expanded === id,
+    onZoomTap          : id => (expanded === id ? dock() : openExpand(id)),
+    onExpandedDragStart: () => dock(),
+    onDragStart        : NOOP,
+    onDragMove         : NOOP,
+    onDragEnd          : NOOP
+  });
+
+  // Esc docks the expanded panel (only when no drill-down modal is open).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && zoom.depth === 0 && expanded) {
+        dock();
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+
+    return () => window.removeEventListener('keydown', onKey);
+  }, [zoom.depth, expanded, dock]);
+
+  const data = ws.data;
+  const segments = useMemo(() => [...data?.segments ?? []].sort((a, b) => a.tStart - b.tStart), [data]);
+  const items = useMemo(() => collectItems(data?.artifacts ?? []), [data]);
+  const summary = data?.artifacts.find(a => a.type === 'summary') ?? null;
+  const diagram = data?.artifacts.find(a => a.type === 'diagram') ?? null;
+
+  const segById = useMemo(() => new Map(segments.map(s => [s.id, s])), [segments]);
+  const itemsForSeg = useCallback(
+    (segId: string) => items.filter(it => it.sourceSegmentIds.includes(segId)),
+    [items]
+  );
+
+  // ── drill-downs ──
+  const openSeg = useCallback((seg: ConversationEvent) => {
+    zoom.zoom({
+      key  : `seg-${seg.id}`,
+      title: 'Message',
+      body : <SegmentDetail
+        seg={seg}
+        linked={itemsForSeg(seg.id)} />
+    });
+  }, [zoom, itemsForSeg]);
+
+  const openItem = useCallback((it: ArtifactItem) => {
+    zoom.zoom({
+      key  : `item-${it.id}`,
+      title: it.kind,
+      body : <ItemDetail
+        item={it}
+        evidence={it.sourceSegmentIds.map(id => segById.get(id)).filter(Boolean) as ConversationEvent[]} />
+    });
+  }, [zoom, segById]);
+
+  if (!data) {
+    return (
+      <div className="dw-loading">
+        {ws.error ? `Failed to load workspace: ${ws.error}` : 'Loading workspace…'}
+      </div>
+    );
+  }
+
+  const live = data.meeting.status === 'live';
+
+  const renderPanelBody = (id: PanelId, dense: boolean): ReactNode => {
+    if (id === 'comms') {
+      return (
+        <Transcript
+          segments={segments}
+          litSegs={litSegs}
+          dense={dense}
+          onHover={setHoverSegs}
+          onOpen={openSeg}
+        />
+      );
+    }
+
+    if (id === 'workflow') {
+      return <MermaidDiagram source={diagram ? (diagram.content as { mermaid: string }).mermaid : null} />;
+    }
+
+    return (
+      <SummaryPanel
+        summary={summary ? (summary.content as { markdown: string }).markdown : null}
+        items={items}
+        litSegs={litSegs}
+        onHover={setHoverSegs}
+        onOpen={openItem}
+      />
+    );
+  };
+
+  return (
+    <div
+      className="dw-root"
+      onClick={e => {
+        if (!(e.target instanceof Element) || !e.target.closest('[data-intent="content"], button, .dw-chip')) {
+          ws.clearHighlight();
+          setHoverSegs([]);
+        }
+      }}
+    >
+      <header className="dw-bar">
+        <Link
+          href="/"
+          className="dw-back">‹ meetings</Link>
+        <h1 className="dw-title">{data.meeting.title}</h1>
+        <span
+          className="dw-status"
+          data-status={data.meeting.status}>{data.meeting.status}</span>
+        {live && ws.liveState === 'degraded' && <span
+          className="dw-delayed"
+          title="Push unavailable — polling">live · delayed</span>}
+        <span className="dw-count">{segments.length} segments · {data.meeting.platform}</span>
+        <button
+          type="button"
+          className="dw-btn"
+          disabled={ws.regenerating}
+          onClick={ws.regenerate}>
+          {ws.regenerating ? 'regenerating…' : 'regenerate'}
+        </button>
+        <ThemeMenu className="dw-theme" />
+      </header>
+
+      {ws.error && <div
+        className="dw-notice"
+        data-sev="error">{ws.error}</div>}
+      {ws.notice && (
+        <div
+          className="dw-notice"
+          data-sev={ws.notice.severity}>
+          <span>{ws.notice.message}</span>
+          <button
+            type="button"
+            className="dw-notice-x"
+            aria-label="Dismiss"
+            onClick={ws.dismissNotice}>✕</button>
+        </div>
+      )}
+
+      <div className="dw-deck">
+        {PANELS.map(p => {
+          const isOn = gesture.hoverId === p.id;
+
+          return (
+            <section
+              key={p.id}
+              className={`dw-panel dw-panel-${p.id}`}
+              data-hover-intent={isOn ? gesture.hoverIntent ?? undefined : undefined}
+              style={{ cursor: gesture.cursorFor(p.id) }}
+              {...gesture.handlers(p.id)}
+            >
+              <div className="dw-grip">
+                <span className="dw-grip-dots"><i /><i /><i /></span>
+                <span className="dw-grip-title">{p.title}</span>
+                <span className="dw-grip-hint">tap to expand</span>
+              </div>
+              <div className="dw-body">{renderPanelBody(p.id, true)}</div>
+            </section>
+          );
+        })}
+      </div>
+
+      {expanded && (
+        <div
+          className={`dw-expand-backdrop${closing ? ' dw-closing' : ''}`}
+          onClick={dock}>
+          <section
+            className={`dw-panel dw-expanded${closing ? ' dw-closing' : ''}`}
+            style={{ cursor: gesture.cursorFor(expanded) }}
+            onClick={e => e.stopPropagation()}
+            {...gesture.handlers(expanded)}
+          >
+            <div className="dw-grip">
+              <span className="dw-grip-title">{PANELS.find(p => p.id === expanded)?.title}</span>
+              <button
+                type="button"
+                className="dw-dock"
+                data-intent="control"
+                onClick={dock}>dock ✕</button>
+            </div>
+            <div className="dw-body dw-body-expanded">{renderPanelBody(expanded as PanelId, false)}</div>
+          </section>
+        </div>
+      )}
+
+      <ZoomStack
+        stack={zoom.stack}
+        onPop={zoom.pop} />
+    </div>
+  );
+}
+
+// ── transcript ──
+function Transcript ({ segments, litSegs, dense, onHover, onOpen }: {
+  segments: ConversationEvent[];
+  litSegs: ReadonlySet<string>;
+  dense: boolean;
+  onHover: (segIds: readonly string[]) => void;
+  onOpen: (seg: ConversationEvent) => void;
+}) {
+  if (segments.length === 0) {
+    return <p className="dw-empty">No transcript yet.</p>;
+  }
+
+  return (
+    <div className="dw-feed">
+      {segments.map((s, i) => {
+        const prev = segments[i - 1];
+        const grouped = !dense && prev?.speakerId === s.speakerId && s.tStart - prev.tStart < 60_000;
+
+        return (
+          <ChatBubble
+            key={s.id}
+            speaker={s.speakerLabel}
+            speakerColor={speakerColor(s.speakerId)}
+            initials={initials(s.speakerLabel)}
+            time={formatOffset(s.tStart)}
+            variant={s.speakerId.startsWith('peace:') ? 'bot' : 'default'}
+            density={dense ? 'compact' : 'comfortable'}
+            grouped={grouped}
+            selected={litSegs.has(s.id)}
+            onActivate={() => onOpen(s)}
+            onMouseEnter={() => onHover([s.id])}
+            onMouseLeave={() => onHover([])}
+          >
+            {s.text}
+          </ChatBubble>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── summary / artifacts ──
+function SummaryPanel ({ summary, items, litSegs, onHover, onOpen }: {
+  summary: string | null;
+  items: ArtifactItem[];
+  litSegs: ReadonlySet<string>;
+  onHover: (segIds: readonly string[]) => void;
+  onOpen: (item: ArtifactItem) => void;
+}) {
+  if (!summary && items.length === 0) {
+    return <p className="dw-empty">No artifacts yet — run <em>regenerate</em>.</p>;
+  }
+
+  return (
+    <div className="dw-summary">
+      {summary && <p className="dw-lede">{summary}</p>}
+      <div className="dw-cards">
+        {items.map(it => {
+          const on = it.sourceSegmentIds.some(id => litSegs.has(id));
+
+          return (
+            <button
+              key={it.id}
+              type="button"
+              data-intent="content"
+              className={`dw-card dw-card-${it.kind}`}
+              data-on={on || undefined}
+              onClick={() => onOpen(it)}
+              onMouseEnter={() => onHover(it.sourceSegmentIds)}
+              onMouseLeave={() => onHover([])}
+            >
+              <span className="dw-card-kind">{KIND_GLYPH[it.kind]} {it.kind}</span>
+              <span className="dw-card-text">{it.text}</span>
+              {it.sub && <span className="dw-card-sub">{it.sub}</span>}
+              <span className="dw-card-foot">
+                <span className="dw-chip">◈ {it.sourceSegmentIds.length}</span>
+                {it.uncertain && <span className="dw-uncertain">uncertain</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── drill-down modal bodies ──
+function SegmentDetail ({ seg, linked }: { seg: ConversationEvent; linked: ArtifactItem[] }) {
+  return (
+    <div className="dw-modal">
+      <span className="dw-modal-eyebrow">message · {formatOffset(seg.tStart)}</span>
+      <ChatBubble
+        speaker={seg.speakerLabel}
+        speakerColor={speakerColor(seg.speakerId)}
+        initials={initials(seg.speakerLabel)}
+        time={formatOffset(seg.tStart)}
+        variant={seg.speakerId.startsWith('peace:') ? 'bot' : 'default'}
+        density="comfortable"
+      >
+        {seg.text}
+      </ChatBubble>
+      <div className="dw-modal-sec">
+        <span className="dw-modal-h">Linked to</span>
+        {linked.length === 0 ? <p className="dw-empty">Not cited by any artifact yet.</p> : linked.map(it => <span
+          key={it.id}
+          className="dw-link-row">{KIND_GLYPH[it.kind]} {it.text}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function ItemDetail ({ item, evidence }: { item: ArtifactItem; evidence: ConversationEvent[] }) {
+  return (
+    <div className="dw-modal">
+      <span className="dw-modal-eyebrow">{KIND_GLYPH[item.kind]} {item.kind}</span>
+      <h3 className="dw-modal-title">{item.text}</h3>
+      {item.sub && <p className="dw-modal-sub">{item.sub}</p>}
+      <div className="dw-modal-sec">
+        <span className="dw-modal-h">Evidence · {evidence.length}</span>
+        {evidence.length === 0 ? <p className="dw-empty">No linked segments.</p> : evidence.map(seg => (
+          <ChatBubble
+            key={seg.id}
+            speaker={seg.speakerLabel}
+            speakerColor={speakerColor(seg.speakerId)}
+            initials={initials(seg.speakerLabel)}
+            time={formatOffset(seg.tStart)}
+            variant={seg.speakerId.startsWith('peace:') ? 'bot' : 'default'}
+            density="comfortable"
+          >
+            {seg.text}
+          </ChatBubble>
+        ))}
+      </div>
+    </div>
+  );
+}

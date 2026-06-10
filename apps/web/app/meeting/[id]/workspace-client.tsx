@@ -1,11 +1,11 @@
 'use client';
 
-import { WorkspaceShell } from '@peace/ui';
 import { webAdapter } from '../../../src/adapter';
+import { DeckWorkspace } from './deck-workspace';
 
 export function WorkspaceClient ({ meetingId }: { meetingId: string }) {
   return (
-    <WorkspaceShell
+    <DeckWorkspace
       meetingId={meetingId}
       adapter={webAdapter}
     />

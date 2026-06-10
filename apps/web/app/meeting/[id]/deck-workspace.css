@@ -1,0 +1,510 @@
+/* peace — meeting workspace, authored on @peace/design --peace-* tokens + the kit.
+   Three themed panels (conversation · workflow · summary) over live meeting data,
+   with the intent model: tap a panel surface to expand, tap content to drill in. */
+
+.dw-root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--peace-field);
+  color: var(--peace-ink);
+  font-family: var(--peace-font-sans);
+}
+
+/* ── status bar ── */
+.dw-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: 11px 18px;
+  border-bottom: var(--peace-border-width) solid var(--peace-line);
+  background: color-mix(in oklch, var(--peace-panel) 80%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.dw-back {
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  color: var(--peace-ink-faint);
+  text-decoration: none;
+}
+
+.dw-back:hover {
+  color: var(--peace-accent);
+}
+
+.dw-title {
+  overflow: hidden;
+  max-width: 40ch;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--peace-ink-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dw-status {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--peace-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--peace-ink-muted);
+  background: color-mix(in oklch, var(--peace-ink-muted) 14%, transparent);
+}
+
+.dw-status[data-status="live"] {
+  color: var(--peace-positive);
+  background: color-mix(in oklch, var(--peace-positive) 16%, transparent);
+}
+
+.dw-status[data-status="failed"] {
+  color: var(--peace-danger);
+  background: color-mix(in oklch, var(--peace-danger) 16%, transparent);
+}
+
+.dw-delayed {
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  color: var(--peace-accent-2);
+}
+
+.dw-count {
+  margin-left: auto;
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  color: var(--peace-ink-faint);
+}
+
+.dw-btn {
+  padding: 6px 13px;
+  font-family: var(--peace-font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-btn:hover {
+  background: var(--peace-hover-bg);
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.dw-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dw-theme {
+  padding: 6px 9px;
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+}
+
+.dw-theme:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.dw-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 7px 18px;
+  font-size: 12.5px;
+  border-bottom: var(--peace-border-width) solid var(--peace-line);
+}
+
+.dw-notice[data-sev="error"] {
+  color: var(--peace-danger);
+  background: color-mix(in oklch, var(--peace-danger) 12%, transparent);
+}
+
+.dw-notice[data-sev="warning"] {
+  color: var(--peace-accent-2);
+  background: color-mix(in oklch, var(--peace-accent-2) 12%, transparent);
+}
+
+.dw-notice[data-sev="info"] {
+  color: var(--peace-accent);
+  background: color-mix(in oklch, var(--peace-accent) 10%, transparent);
+}
+
+.dw-notice span {
+  flex: 1;
+}
+
+.dw-notice-x {
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: var(--peace-cursor-pointer);
+  opacity: 0.7;
+}
+
+/* ── deck ── */
+.dw-deck {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+}
+
+.dw-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--peace-panel);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-lg);
+  clip-path: var(--peace-corner-clip-lg);
+  transition:
+    border-color calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+/* The granular intent highlight: hovering empty SURFACE advertises zoom (the panel
+   lights with the theme's hover glow); hovering CONTENT lights the element instead. */
+.dw-panel[data-hover-intent="surface"] {
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-grip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border-bottom: var(--peace-border-width) solid var(--peace-line);
+}
+
+.dw-grip-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.dw-grip-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--peace-ink-faint);
+}
+
+.dw-grip-title {
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--peace-tracking-wide);
+  text-transform: uppercase;
+  color: var(--peace-ink-strong);
+}
+
+.dw-grip-hint {
+  margin-left: auto;
+  font-family: var(--peace-font-mono);
+  font-size: 9.5px;
+  color: var(--peace-ink-faint);
+}
+
+.dw-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.dw-body-expanded {
+  padding: 20px 28px;
+}
+
+/* ── transcript ── */
+.dw-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── summary / artifact cards ── */
+.dw-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px;
+}
+
+.dw-lede {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--peace-ink);
+}
+
+.dw-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.dw-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--peace-raised);
+  color: var(--peace-ink);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-left: var(--peace-border-width-accent) solid var(--c, var(--peace-line));
+  border-radius: var(--peace-corner-radius-md);
+  clip-path: var(--peace-corner-clip-md);
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    transform calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-card-decision {
+  --c: var(--peace-kind-decision);
+}
+
+.dw-card-action {
+  --c: var(--peace-kind-action);
+}
+
+.dw-card-question {
+  --c: var(--peace-kind-question);
+}
+
+.dw-card-point {
+  --c: var(--peace-kind-topic);
+}
+
+.dw-card:hover {
+  background: var(--peace-hover-bg);
+  box-shadow: var(--peace-hover-glow);
+  transform: var(--peace-hover-lift);
+}
+
+.dw-card:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.dw-card[data-on] {
+  background: var(--peace-selected-bg);
+  box-shadow: var(--peace-selected-glow);
+}
+
+.dw-card-kind {
+  font-family: var(--peace-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c, var(--peace-accent));
+}
+
+.dw-card-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--peace-ink-strong);
+}
+
+.dw-card-sub {
+  font-size: 12px;
+  color: var(--peace-ink-muted);
+}
+
+.dw-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dw-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--peace-font-mono);
+  font-size: 10px;
+  color: var(--peace-accent);
+  border: var(--peace-border-width) solid color-mix(in oklch, var(--peace-accent) 35%, transparent);
+  background: color-mix(in oklch, var(--peace-accent) 10%, transparent);
+}
+
+.dw-uncertain {
+  font-family: var(--peace-font-mono);
+  font-size: 10px;
+  color: var(--peace-accent-2);
+}
+
+/* ── mermaid ── */
+.dw-mermaid {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.dw-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ── expanded overlay ── */
+.dw-expand-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--peace-z-backdrop, 15);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 28px;
+  background: var(--peace-backdrop);
+  backdrop-filter: blur(6px);
+  animation: peace-fade 200ms ease both;
+}
+
+.dw-expanded {
+  width: min(1100px, 96vw);
+  box-shadow: var(--peace-shadow-modal);
+  animation: peace-zoom-in 320ms var(--peace-ease) both;
+}
+
+.dw-expand-backdrop.dw-closing {
+  animation: peace-fade calc(var(--peace-dur-4) * var(--peace-motion-scale)) var(--peace-ease-reverse) reverse both;
+}
+
+.dw-expanded.dw-closing {
+  animation: peace-zoom-out calc(var(--peace-dur-4) * var(--peace-motion-scale)) var(--peace-ease-reverse) both;
+}
+
+.dw-dock {
+  margin-left: auto;
+  padding: 4px 11px;
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  color: var(--peace-ink-muted);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+}
+
+.dw-dock:hover {
+  color: var(--peace-ink);
+  box-shadow: var(--peace-hover-glow);
+}
+
+/* ── drill-down modal ── */
+.dw-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 28px;
+}
+
+.dw-modal-eyebrow {
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--peace-accent);
+}
+
+.dw-modal-title {
+  margin: 2px 0 0;
+  font-family: var(--peace-font-serif);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--peace-ink-strong);
+}
+
+.dw-modal-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--peace-ink-muted);
+}
+
+.dw-modal-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: var(--peace-border-width) solid var(--peace-line);
+}
+
+.dw-modal-h {
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--peace-ink-faint);
+}
+
+.dw-link-row {
+  padding: 6px 0;
+  font-size: 13.5px;
+  color: var(--peace-ink);
+  border-bottom: var(--peace-border-width) solid color-mix(in oklch, var(--peace-line) 60%, transparent);
+}
+
+/* ── misc ── */
+.dw-loading,
+.dw-empty {
+  padding: 24px;
+  font-size: 13px;
+  color: var(--peace-ink-muted);
+  text-align: center;
+}
+
+.dw-loading {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (width <= 900px) {
+  .dw-deck {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .dw-panel {
+    min-height: 320px;
+  }
+}

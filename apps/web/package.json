@@ -19,6 +19,7 @@
     "@peace/pipeline": "workspace:*",
     "@peace/ui": "workspace:*",
     "better-sqlite3": "catalog:",
+    "mermaid": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

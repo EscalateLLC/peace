@@ -3,12 +3,12 @@
 import { THEMES, type Theme, useTheme } from '@peace/design';
 
 /** Product theme switcher — a native select over the design system's themes. */
-export function ThemeMenu () {
+export function ThemeMenu ({ className = 'home-theme' }: { className?: string }) {
   const { theme, setTheme } = useTheme();
 
   return (
     <select
-      className="home-theme"
+      className={className}
       value={theme}
       aria-label="Theme"
       onChange={e => setTheme(e.target.value as Theme)}
