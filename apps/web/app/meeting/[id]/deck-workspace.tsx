@@ -1,10 +1,25 @@
 'use client';
 
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { ActionItem, Artifact, ConversationEvent, Decision, KeyPoint, OpenQuestion } from '@peace/core';
 import { formatOffset, type WorkspaceDataAdapter } from '@peace/ui';
-import { ChatBubble, useExpand, useIntentGesture, useZoomStack, ZoomStack } from '../../_kit';
+import {
+  buildTargets,
+  ChatBubble,
+  computeSlots,
+  type DragState,
+  focalRatios,
+  nearestSlot,
+  reorder,
+  type Target,
+  useExpand,
+  useIntentGesture,
+  useResize,
+  useSpringLayout,
+  useZoomStack,
+  ZoomStack
+} from '../../_kit';
 import { useWorkspace } from './use-workspace';
 import { MermaidDiagram } from './mermaid-diagram';
 import { ThemeMenu } from '../../theme-menu';
@@ -25,8 +40,12 @@ const PANELS: { id: PanelId; title: string }[] = [
     title: 'Summary'
   }
 ];
+const IDS: readonly PanelId[] = PANELS.map(p => p.id);
 
-const NOOP = () => undefined;
+const PAD = 12;
+const GAP = 10;
+const MIN_RATIO = 0.18;
+const FOCAL_RATIO = 0.46;
 
 /** Stable speaker color slot (0–7) from the speaker id; peace's own turns use the accent. */
 function speakerColor (speakerId: string): string {
@@ -133,14 +152,137 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   const [hoverSegs, setHoverSegs] = useState<readonly string[]>([]);
   const litSegs = useMemo(() => new Set([...ws.highlightedIds, ...hoverSegs]), [ws.highlightedIds, hoverSegs]);
 
+  // ── spring layout: order + ratios drive each panel's target rect ──
+  const deckRef = useRef<HTMLDivElement | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+  const [size, setSize] = useState({
+    w: 0,
+    h: 0
+  });
+  const [order, setOrder] = useState<PanelId[]>(['comms', 'workflow', 'summary']);
+  const [ratios, setRatios] = useState<number[]>(focalRatios({
+    focal     : 1,
+    focalRatio: FOCAL_RATIO
+  }));
+
+  // Measure on attach (the deck only mounts once data loads, so a []-deps effect
+  // would miss it) and keep current via a ResizeObserver.
+  const setDeck = useCallback((el: HTMLDivElement | null) => {
+    deckRef.current = el;
+    roRef.current?.disconnect();
+
+    if (!el) {
+      roRef.current = null;
+
+      return;
+    }
+
+    const measure = () => setSize({
+      w: el.clientWidth,
+      h: el.clientHeight
+    });
+
+    measure();
+    roRef.current = new ResizeObserver(measure);
+    roRef.current.observe(el);
+  }, []);
+
+  const geom = useMemo(() => computeSlots({
+    width : size.w,
+    height: size.h,
+    ratios,
+    pad   : PAD,
+    gap   : GAP
+  }), [size, ratios]);
+  const geomRef = useRef(geom);
+
+  geomRef.current = geom;
+  const grabRef = useRef(0);
+  const ready = size.w > 0;
+
+  const { dragging, draggingRef, onSeamDown, onSeamMove, onSeamUp } = useResize({
+    aw      : geom.aw,
+    ratios,
+    setRatios,
+    minRatio: MIN_RATIO
+  });
+
+  const targets = useMemo(() => buildTargets({
+    ids       : IDS,
+    order,
+    slots     : geom,
+    pad       : PAD,
+    expandGeom: id => {
+      if (id !== expanded || closing) {
+        return null;
+      }
+
+      const mx = Math.round(size.w * 0.05);
+
+      return {
+        x: mx,
+        y: PAD,
+        w: Math.max(0, size.w - 2 * mx),
+        h: geom.h
+      };
+    }
+  }) as Record<PanelId, Target>, [order, geom, expanded, closing, size]);
+
+  const drag = useRef<DragState>({
+    panel: null,
+    x    : 0
+  });
+  const { setPanelRef, kick } = useSpringLayout({
+    ids: IDS,
+    targets,
+    ready,
+    draggingRef,
+    drag
+  });
+
+  const anchorDrag = useCallback((clientX: number) => {
+    const deck = deckRef.current;
+
+    return deck ? clientX - deck.getBoundingClientRect().x - grabRef.current : 0;
+  }, []);
+
   const gesture = useIntentGesture({
-    frameInset         : 0,
     isExpanded         : id => expanded === id,
     onZoomTap          : id => (expanded === id ? dock() : openExpand(id)),
     onExpandedDragStart: () => dock(),
-    onDragStart        : NOOP,
-    onDragMove         : NOOP,
-    onDragEnd          : NOOP
+    onDragStart        : ({ id, clientX }) => {
+      const panelEl = deckRef.current?.querySelector<HTMLElement>(`[data-panel="${id}"]`);
+
+      grabRef.current = clientX - (panelEl?.getBoundingClientRect().x ?? 0);
+      drag.current.panel = id;
+      drag.current.x = anchorDrag(clientX);
+      kick();
+    },
+    onDragMove: ({ id, clientX }) => {
+      const deck = deckRef.current;
+
+      if (!deck) {
+        return;
+      }
+
+      drag.current.x = anchorDrag(clientX);
+      const slot = nearestSlot({
+        px: clientX - deck.getBoundingClientRect().x,
+        sx: geomRef.current.sx,
+        sw: geomRef.current.sw
+      });
+
+      setOrder(ord => reorder({
+        order: ord,
+        id,
+        slot
+      }) as PanelId[]);
+      kick();
+    },
+    onDragEnd: () => {
+      drag.current.panel = null;
+      kick();
+    }
   });
 
   // Esc docks the expanded panel (only when no drill-down modal is open).
@@ -163,12 +305,8 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   const diagram = data?.artifacts.find(a => a.type === 'diagram') ?? null;
 
   const segById = useMemo(() => new Map(segments.map(s => [s.id, s])), [segments]);
-  const itemsForSeg = useCallback(
-    (segId: string) => items.filter(it => it.sourceSegmentIds.includes(segId)),
-    [items]
-  );
+  const itemsForSeg = useCallback((segId: string) => items.filter(it => it.sourceSegmentIds.includes(segId)), [items]);
 
-  // ── drill-downs ──
   const openSeg = useCallback((seg: ConversationEvent) => {
     zoom.zoom({
       key  : `seg-${seg.id}`,
@@ -191,25 +329,24 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
 
   if (!data) {
     return (
-      <div className="dw-loading">
-        {ws.error ? `Failed to load workspace: ${ws.error}` : 'Loading workspace…'}
+      <div className="dw-root">
+        <div className="dw-loading">{ws.error ? `Failed to load workspace: ${ws.error}` : 'Loading workspace…'}</div>
       </div>
     );
   }
 
   const live = data.meeting.status === 'live';
 
-  const renderPanelBody = (id: PanelId, dense: boolean): ReactNode => {
+  const renderPanelBody = (id: PanelId): ReactNode => {
+    const dense = expanded !== id;
+
     if (id === 'comms') {
-      return (
-        <Transcript
-          segments={segments}
-          litSegs={litSegs}
-          dense={dense}
-          onHover={setHoverSegs}
-          onOpen={openSeg}
-        />
-      );
+      return <Transcript
+        segments={segments}
+        litSegs={litSegs}
+        dense={dense}
+        onHover={setHoverSegs}
+        onOpen={openSeg} />;
     }
 
     if (id === 'workflow') {
@@ -275,51 +412,60 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         </div>
       )}
 
-      <div className="dw-deck">
+      <div
+        className={`dw-deck${dragging ? ' dw-resizing' : ''}`}
+        ref={setDeck}>
+        {expanded && !closing && <button
+          type="button"
+          className="dw-backdrop"
+          aria-label="Dock"
+          onClick={dock} />}
+
         {PANELS.map(p => {
-          const isOn = gesture.hoverId === p.id;
+          const isExpanded = expanded === p.id;
+          const gripOn = gesture.hoverId === p.id && gesture.hoverIntent === 'surface';
 
           return (
             <section
               key={p.id}
-              className={`dw-panel dw-panel-${p.id}`}
-              data-hover-intent={isOn ? gesture.hoverIntent ?? undefined : undefined}
+              ref={setPanelRef(p.id)}
+              data-panel={p.id}
+              className={`dw-panel${gripOn ? ' dw-grip-on' : ''}${isExpanded ? ' dw-expanded' : ''}${gesture.dragId === p.id ? ' dw-dragging-panel' : ''}`}
               style={{ cursor: gesture.cursorFor(p.id) }}
+              data-hover-intent={gesture.hoverId === p.id ? gesture.hoverIntent ?? undefined : undefined}
               {...gesture.handlers(p.id)}
             >
               <div className="dw-grip">
                 <span className="dw-grip-dots"><i /><i /><i /></span>
                 <span className="dw-grip-title">{p.title}</span>
-                <span className="dw-grip-hint">tap to expand</span>
+                {isExpanded ? <button
+                  type="button"
+                  data-intent="control"
+                  className="dw-dock"
+                  onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to reorder' : ''}</span>}
               </div>
-              <div className="dw-body">{renderPanelBody(p.id, true)}</div>
+              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}`}>{renderPanelBody(p.id)}</div>
             </section>
           );
         })}
-      </div>
 
-      {expanded && (
-        <div
-          className={`dw-expand-backdrop${closing ? ' dw-closing' : ''}`}
-          onClick={dock}>
-          <section
-            className={`dw-panel dw-expanded${closing ? ' dw-closing' : ''}`}
-            style={{ cursor: gesture.cursorFor(expanded) }}
-            onClick={e => e.stopPropagation()}
-            {...gesture.handlers(expanded)}
+        {ready && !expanded && [0, 1].map(k => (
+          <div
+            key={k}
+            data-intent="control"
+            className={`dw-seam${dragging ? ' dw-seam-drag' : ''}`}
+            style={{
+              transform: `translate3d(${geom.sx[k]! + geom.sw[k]! + GAP / 2}px, ${PAD}px, 0)`,
+              height   : `${geom.h}px`
+            }}
+            onPointerDown={onSeamDown(k)}
+            onPointerMove={onSeamMove}
+            onPointerUp={onSeamUp}
           >
-            <div className="dw-grip">
-              <span className="dw-grip-title">{PANELS.find(p => p.id === expanded)?.title}</span>
-              <button
-                type="button"
-                className="dw-dock"
-                data-intent="control"
-                onClick={dock}>dock ✕</button>
-            </div>
-            <div className="dw-body dw-body-expanded">{renderPanelBody(expanded as PanelId, false)}</div>
-          </section>
-        </div>
-      )}
+            <span className="dw-seam-grip" />
+          </div>
+        ))}
+      </div>
 
       <ZoomStack
         stack={zoom.stack}

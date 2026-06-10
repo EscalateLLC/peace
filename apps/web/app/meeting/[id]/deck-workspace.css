@@ -167,25 +167,34 @@
   opacity: 0.7;
 }
 
-/* ── deck ── */
+/* ── deck — panels are spring-positioned absolutely (transform/width/height set
+   imperatively by the kit's useSpringLayout); drag a panel to reorder, drag a
+   seam to resize, tap a surface to expand. ── */
 .dw-deck {
-  display: grid;
-  grid-template-columns: 1fr 1.1fr 1fr;
-  gap: 12px;
+  position: relative;
   flex: 1;
   min-height: 0;
-  padding: 12px;
+}
+
+.dw-deck.dw-resizing {
+  cursor: var(--peace-cursor-col-resize);
+  user-select: none;
 }
 
 .dw-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
   overflow: hidden;
   background: var(--peace-panel);
   border: var(--peace-border-width) solid var(--peace-line);
   border-radius: var(--peace-corner-radius-lg);
   clip-path: var(--peace-corner-clip-lg);
+  contain: layout paint;
+  will-change: transform, width, height;
   transition:
     border-color calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
     box-shadow calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
@@ -193,9 +202,63 @@
 
 /* The granular intent highlight: hovering empty SURFACE advertises zoom (the panel
    lights with the theme's hover glow); hovering CONTENT lights the element instead. */
-.dw-panel[data-hover-intent="surface"] {
+.dw-panel.dw-grip-on {
   border-color: var(--peace-hover-border);
   box-shadow: var(--peace-hover-glow);
+}
+
+.dw-dragging-panel {
+  z-index: 30;
+  box-shadow: var(--peace-shadow-drag);
+}
+
+.dw-expanded {
+  z-index: 20;
+  box-shadow: var(--peace-shadow-modal);
+}
+
+.dw-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  padding: 0;
+  border: 0;
+  background: var(--peace-backdrop);
+  backdrop-filter: blur(3px);
+  cursor: var(--peace-cursor-zoom-out);
+  animation: peace-fade 200ms ease;
+}
+
+.dw-seam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  margin-left: -5px;
+  cursor: var(--peace-cursor-col-resize);
+  touch-action: none;
+}
+
+.dw-seam-grip {
+  width: 3px;
+  height: 34px;
+  border-radius: 3px;
+  background: var(--peace-line);
+  transition:
+    height calc(var(--peace-dur-1) * var(--peace-motion-scale)) var(--peace-ease),
+    background calc(var(--peace-dur-1) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-1) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-seam:hover .dw-seam-grip,
+.dw-seam-drag .dw-seam-grip {
+  height: 60px;
+  background: var(--peace-accent);
+  box-shadow: var(--peace-glow-accent);
 }
 
 .dw-grip {
@@ -382,34 +445,6 @@
   height: auto;
 }
 
-/* ── expanded overlay ── */
-.dw-expand-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--peace-z-backdrop, 15);
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 28px;
-  background: var(--peace-backdrop);
-  backdrop-filter: blur(6px);
-  animation: peace-fade 200ms ease both;
-}
-
-.dw-expanded {
-  width: min(1100px, 96vw);
-  box-shadow: var(--peace-shadow-modal);
-  animation: peace-zoom-in 320ms var(--peace-ease) both;
-}
-
-.dw-expand-backdrop.dw-closing {
-  animation: peace-fade calc(var(--peace-dur-4) * var(--peace-motion-scale)) var(--peace-ease-reverse) reverse both;
-}
-
-.dw-expanded.dw-closing {
-  animation: peace-zoom-out calc(var(--peace-dur-4) * var(--peace-motion-scale)) var(--peace-ease-reverse) both;
-}
-
 .dw-dock {
   margin-left: auto;
   padding: 4px 11px;
@@ -496,15 +531,4 @@
   height: 100%;
   align-items: center;
   justify-content: center;
-}
-
-@media (width <= 900px) {
-  .dw-deck {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
-
-  .dw-panel {
-    min-height: 320px;
-  }
 }
