@@ -27,13 +27,14 @@ function nodeIdOf (el: Element): string | null {
   return el.id.match(/-flowchart-(.+)-\d+$/)?.[1] ?? null;
 }
 
-export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode, expanded }: {
+export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode, expanded, busy }: {
   source: string | null;
   nodeEvidence: Record<string, string[]>;
   litSegs: ReadonlySet<string>;
   onHover: (segIds: readonly string[]) => void;
   onNode: (node: DiagramNode) => void;
   expanded: boolean;
+  busy: boolean;
 }) {
   const { theme } = useTheme();
   const [svg, setSvg] = useState('');
@@ -47,6 +48,7 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     w: 0,
     h: 0
   });
+  const [settling, setSettling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const rid = `dw-mmd-${useId().replace(/[:]/g, '')}`;
 
@@ -151,6 +153,60 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
 
     return () => cancelAnimationFrame(id);
   }, [svg, expanded, fit]);
+
+  // Recentre on resize, but mask the reposition with a loading state instead of
+  // letting the diagram visibly snap: while the canvas is mid-resize (e.g. a pane
+  // minimises) we hide it; once the size settles we refit and reveal it centred.
+  useEffect(() => {
+    const root = containerRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    let raf = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let primed = false;
+
+    const ro = new ResizeObserver(() => {
+      if (!primed) {
+        primed = true;
+        fit();
+
+        return;
+      }
+
+      setSettling(true);
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+      timer = setTimeout(() => {
+        raf = requestAnimationFrame(() => {
+          fit();
+          setSettling(false);
+        });
+      }, 180);
+    });
+
+    ro.observe(root);
+
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [fit]);
+
+  // When a parent-driven layout change (busy) ends, refit so the diagram reveals
+  // already centred in its new size.
+  useEffect(() => {
+    if (busy) {
+      return;
+    }
+
+    const id = requestAnimationFrame(fit);
+
+    return () => cancelAnimationFrame(id);
+  }, [busy, fit]);
 
   const zoomAt = useCallback((cx: number, cy: number, factor: number) => {
     setView(v => {
@@ -339,6 +395,8 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     pan.current = null;
   };
 
+  const loading = settling || busy;
+
   if (!source) {
     return <p className="dw-empty">No diagram yet — run <em>regenerate</em>.</p>;
   }
@@ -355,6 +413,7 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
       className="dw-mermaid"
       data-intent={expanded ? 'control' : undefined}
       data-expanded={expanded || undefined}
+      data-settling={loading || undefined}
       style={{
         '--dw-gx': `${view.x}px`,
         '--dw-gy': `${view.y}px`,
@@ -374,6 +433,13 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
         }}
         dangerouslySetInnerHTML={{ __html: svg }}
       />
+      {loading && (
+        <div
+          className="dw-mermaid-loading"
+          aria-hidden="true">
+          <span className="dw-mermaid-spin" />
+        </div>
+      )}
       {expanded && (
         <div
           className="dw-diagram-controls"

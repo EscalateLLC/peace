@@ -115,6 +115,15 @@ export function useIntentGesture (o: IntentGestureOptions) {
       };
     }
 
+    // A `[data-no-frame]` region opts out of the drag frame — dense interactive lists
+    // (e.g. an outline) keep their rows clickable to the edge instead of becoming drag.
+    if (e.target instanceof Element && e.target.closest('[data-no-frame]')) {
+      return {
+        intent: base,
+        frame : false
+      };
+    }
+
     const r = e.currentTarget.getBoundingClientRect();
     const dx = Math.min(e.clientX - r.left, r.right - e.clientX) / (r.width || 1);
     const dy = Math.min(e.clientY - r.top, r.bottom - e.clientY) / (r.height || 1);

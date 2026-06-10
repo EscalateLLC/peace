@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { ActionItem, Artifact, ConversationEvent, Decision, KeyPoint, OpenQuestion } from '@peace/core';
 import { formatOffset, type WorkspaceDataAdapter } from '@peace/ui';
@@ -143,6 +143,109 @@ const KIND_GLYPH: Record<ArtifactItem['kind'], string> = {
   point   : '▪'
 };
 
+interface FlowRow {
+  id: string;
+  label: string;
+  depth: number;
+}
+
+/** Parse the pipeline's `flowchart` Mermaid (`A["…"] --> B["…"]` per line) into labels + edges. */
+function parseFlow (mermaid: string): { labels: Map<string, string>; edges: [string, string][] } {
+  const labels = new Map<string, string>();
+  const edges: [string, string][] = [];
+  const token = /([A-Za-z0-9_]+)(?:\["([^"]*)"\])?/;
+
+  for (const raw of mermaid.split('\n')) {
+    const line = raw.trim();
+
+    if (!line || /^(?:flowchart|graph)\b/.test(line)) {
+      continue;
+    }
+
+    let prev: string | null = null;
+
+    for (const part of line.split('-->')) {
+      const m = part.trim().match(token);
+
+      if (!m) {
+        continue;
+      }
+
+      const id = m[1]!;
+
+      if (m[2] !== undefined) {
+        labels.set(id, m[2]);
+      } else if (!labels.has(id)) {
+        labels.set(id, id);
+      }
+
+      if (prev) {
+        edges.push([prev, id]);
+      }
+
+      prev = id;
+    }
+  }
+
+  return {
+    labels,
+    edges
+  };
+}
+
+/** A flow outline: DFS from the roots (no incoming edge), each node listed once. */
+function buildFlowRows (mermaid: string | null): FlowRow[] {
+  if (!mermaid) {
+    return [];
+  }
+
+  const { labels, edges } = parseFlow(mermaid);
+  const children = new Map<string, string[]>();
+  const indeg = new Map<string, number>();
+
+  for (const id of labels.keys()) {
+    children.set(id, []);
+    indeg.set(id, 0);
+  }
+
+  for (const [from, to] of edges) {
+    children.get(from)?.push(to);
+    indeg.set(to, (indeg.get(to) ?? 0) + 1);
+  }
+
+  const seen = new Set<string>();
+  const rows: FlowRow[] = [];
+
+  const visit = (id: string, depth: number) => {
+    if (seen.has(id)) {
+      return;
+    }
+
+    seen.add(id);
+    rows.push({
+      id,
+      label: labels.get(id) ?? id,
+      depth
+    });
+
+    for (const child of children.get(id) ?? []) {
+      visit(child, depth + 1);
+    }
+  };
+
+  for (const id of labels.keys()) {
+    if (indeg.get(id) === 0) {
+      visit(id, 0);
+    }
+  }
+
+  for (const id of labels.keys()) {
+    visit(id, 0); // any node left in a cycle
+  }
+
+  return rows;
+}
+
 export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
   const ws = useWorkspace(meetingId, adapter);
   const { expanded, closing, openExpand, dock } = useExpand();
@@ -151,6 +254,30 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   // Cross-link: the segment ids currently lit (from hover or a clicked evidence chip).
   const [hoverSegs, setHoverSegs] = useState<readonly string[]>([]);
   const litSegs = useMemo(() => new Set([...ws.highlightedIds, ...hoverSegs]), [ws.highlightedIds, hoverSegs]);
+
+  // In the expanded workflow, which side (if any) is minimized.
+  const [wfMin, setWfMin] = useState<'diagram' | 'tree' | null>(null);
+
+  // The diagram canvas resizes whenever the workflow expands/collapses or a pane
+  // minimises. Flag it busy SYNCHRONOUSLY on those changes (the diagram's own
+  // ResizeObserver is a frame late) so it hides before it can visibly snap.
+  const [diagramBusy, setDiagramBusy] = useState(false);
+  const busyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const layoutMounted = useRef(false);
+
+  useEffect(() => {
+    if (!layoutMounted.current) {
+      layoutMounted.current = true;
+
+      return;
+    }
+
+    setDiagramBusy(true);
+    clearTimeout(busyTimer.current);
+    busyTimer.current = setTimeout(() => setDiagramBusy(false), 480);
+
+    return () => clearTimeout(busyTimer.current);
+  }, [expanded, wfMin]);
 
   // ── spring layout: order + ratios drive each panel's target rect ──
   const deckRef = useRef<HTMLDivElement | null>(null);
@@ -301,6 +428,13 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     return () => window.removeEventListener('keydown', onKey);
   }, [zoom.depth, expanded, dock]);
 
+  // Restore both workflow panes whenever it collapses.
+  useEffect(() => {
+    if (expanded !== 'workflow') {
+      setWfMin(null);
+    }
+  }, [expanded]);
+
   const data = ws.data;
   const segments = useMemo(() => [...data?.segments ?? []].sort((a, b) => a.tStart - b.tStart), [data]);
   const items = useMemo(() => collectItems(data?.artifacts ?? []), [data]);
@@ -332,6 +466,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
 
   const diagramSource = diagram ? (diagram.content as { mermaid: string }).mermaid : null;
   const diagramNodeEvidence = diagram ? (diagram.content as { nodeEvidence?: Record<string, string[]> }).nodeEvidence ?? {} : {};
+  const flowRows = useMemo(() => buildFlowRows(diagramSource), [diagramSource]);
 
   const openDiagramEdit = useCallback(() => {
     if (!diagramSource) {
@@ -351,11 +486,15 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   }, [zoom, diagramSource, ws]);
 
   const openNode = useCallback((node: DiagramNode) => {
+    const evidenceSet = new Set(node.evidence);
+    const linked = items.filter(it => it.sourceSegmentIds.some(segId => evidenceSet.has(segId)));
+
     zoom.zoom({
       key  : `node-${node.id}`,
       title: node.label,
       body : <NodeDetail
         node={node}
+        linked={linked}
         evidence={node.evidence.map(id => segById.get(id)).filter(Boolean) as ConversationEvent[]}
         onHighlight={() => {
           ws.highlight(node.evidence);
@@ -363,7 +502,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         }}
         onEdit={openDiagramEdit} />
     });
-  }, [zoom, segById, ws, openDiagramEdit]);
+  }, [zoom, segById, ws, openDiagramEdit, items]);
 
   if (!data) {
     return (
@@ -388,13 +527,71 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     }
 
     if (id === 'workflow') {
-      return <MermaidDiagram
+      const diagramEl = <MermaidDiagram
         source={diagramSource}
         nodeEvidence={diagramNodeEvidence}
         litSegs={litSegs}
         expanded={expanded === id}
+        busy={diagramBusy}
         onHover={setHoverSegs}
         onNode={openNode} />;
+
+      const tree = <WorkflowTree
+        rows={flowRows}
+        nodeEvidence={diagramNodeEvidence}
+        litSegs={litSegs}
+        onHover={setHoverSegs}
+        onNode={openNode} />;
+
+      // Expanded → diagram on the left, the flow outline on the right; either side
+      // minimises to a thin rail. Collapsed → the diagram up top, the outline below.
+      if (expanded === id) {
+        return (
+          <div
+            className="dw-workflow-h"
+            data-min={wfMin ?? undefined}>
+            <section className="dw-wf-pane dw-wf-diagram">
+              <button
+                type="button"
+                className="dw-wf-bar"
+                onClick={() => {
+                  setDiagramBusy(true);
+                  setWfMin(wfMin === 'diagram' ? null : 'diagram');
+                }}
+                aria-label="Minimize or restore the diagram">
+                <span className="dw-wf-name">Diagram</span>
+                <span
+                  className="dw-wf-min"
+                  aria-hidden="true">{wfMin === 'diagram' ? '⊕' : '⊟'}</span>
+              </button>
+              {wfMin !== 'diagram' && diagramEl}
+            </section>
+            <section className="dw-wf-pane dw-wf-flow">
+              <button
+                type="button"
+                className="dw-wf-bar"
+                onClick={() => {
+                  setDiagramBusy(true);
+                  setWfMin(wfMin === 'tree' ? null : 'tree');
+                }}
+                aria-label="Minimize or restore the flow outline">
+                <span className="dw-wf-name">Flow</span>
+                <span
+                  className="dw-wf-min"
+                  aria-hidden="true">{wfMin === 'tree' ? '⊕' : '⊟'}</span>
+              </button>
+              {wfMin !== 'tree' && tree}
+            </section>
+          </div>
+        );
+      }
+
+      return (
+        <div className="dw-workflow">
+          <div className="dw-workflow-diagram">{diagramEl}</div>
+          {tree}
+        </div>
+      );
     }
 
     return (
@@ -559,6 +756,56 @@ function Transcript ({ segments, litSegs, dense, onHover, onOpen }: {
   );
 }
 
+// ── workflow flow outline (cross-links to the diagram + transcript) ──
+function WorkflowTree ({ rows, nodeEvidence, litSegs, onHover, onNode }: {
+  rows: FlowRow[];
+  nodeEvidence: Record<string, string[]>;
+  litSegs: ReadonlySet<string>;
+  onHover: (segIds: readonly string[]) => void;
+  onNode: (node: DiagramNode) => void;
+}) {
+  return (
+    <div
+      className="dw-workflow-tree"
+      data-no-frame>
+      <span className="dw-tree-head">Flow</span>
+      {rows.length === 0 && <p className="dw-empty">No workflow steps yet.</p>}
+      <ul className="dw-tree">
+        {rows.map(row => {
+          const evidence = nodeEvidence[row.id] ?? [];
+          const lit = evidence.some(segId => litSegs.has(segId));
+
+          return (
+            <li
+              key={row.id}
+              className="dw-tree-row"
+              style={{ '--depth': row.depth } as CSSProperties}>
+              <button
+                type="button"
+                data-intent="content"
+                className="dw-tree-node"
+                data-on={lit || undefined}
+                onMouseEnter={() => onHover(evidence)}
+                onMouseLeave={() => onHover([])}
+                onClick={() => onNode({
+                  id   : row.id,
+                  label: row.label,
+                  evidence
+                })}>
+                <span
+                  className="dw-tree-tick"
+                  aria-hidden="true" />
+                <span className="dw-tree-label">{row.label}</span>
+                {evidence.length > 0 && <span className="dw-chip">◈ {evidence.length}</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // ── summary / artifacts ──
 function SummaryPanel ({ summary, items, litSegs, onHover, onOpen }: {
   summary: string | null;
@@ -655,8 +902,9 @@ function ItemDetail ({ item, evidence }: { item: ArtifactItem; evidence: Convers
   );
 }
 
-function NodeDetail ({ node, evidence, onHighlight, onEdit }: {
+function NodeDetail ({ node, linked, evidence, onHighlight, onEdit }: {
   node: DiagramNode;
+  linked: ArtifactItem[];
   evidence: ConversationEvent[];
   onHighlight: () => void;
   onEdit: () => void;
@@ -680,6 +928,21 @@ function NodeDetail ({ node, evidence, onHighlight, onEdit }: {
           disabled
           title="The conversational agent isn't wired to this action yet">✦ Ask peace</button>
       </div>
+      {linked.length > 0 && (
+        <div className="dw-modal-sec">
+          <span className="dw-modal-h">Linked items · {linked.length}</span>
+          <ul className="dw-linked">
+            {linked.map(it => (
+              <li
+                key={it.id}
+                className={`dw-linked-item dw-linked-${it.kind}`}>
+                <span className="dw-linked-kind">{KIND_GLYPH[it.kind]} {it.kind}</span>
+                <span className="dw-linked-text">{it.text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="dw-modal-sec">
         <span className="dw-modal-h">Evidence · {evidence.length}</span>
         {evidence.length === 0 ? <p className="dw-empty">No linked segments.</p> : evidence.map(seg => (
