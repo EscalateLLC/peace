@@ -444,16 +444,6 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   const segById = useMemo(() => new Map(segments.map(s => [s.id, s])), [segments]);
   const itemsForSeg = useCallback((segId: string) => items.filter(it => it.sourceSegmentIds.includes(segId)), [items]);
 
-  const openSeg = useCallback((seg: ConversationEvent) => {
-    zoom.zoom({
-      key  : `seg-${seg.id}`,
-      title: 'Message',
-      body : <SegmentDetail
-        seg={seg}
-        linked={itemsForSeg(seg.id)} />
-    });
-  }, [zoom, itemsForSeg]);
-
   const openItem = useCallback((it: ArtifactItem) => {
     zoom.zoom({
       key  : `item-${it.id}`,
@@ -463,6 +453,17 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         evidence={it.sourceSegmentIds.map(id => segById.get(id)).filter(Boolean) as ConversationEvent[]} />
     });
   }, [zoom, segById]);
+
+  const openSeg = useCallback((seg: ConversationEvent) => {
+    zoom.zoom({
+      key  : `seg-${seg.id}`,
+      title: 'Message',
+      body : <SegmentDetail
+        seg={seg}
+        linked={itemsForSeg(seg.id)}
+        onOpenItem={openItem} />
+    });
+  }, [zoom, itemsForSeg, openItem]);
 
   const diagramSource = diagram ? (diagram.content as { mermaid: string }).mermaid : null;
   const diagramNodeEvidence = diagram ? (diagram.content as { nodeEvidence?: Record<string, string[]> }).nodeEvidence ?? {} : {};
@@ -500,9 +501,10 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
           ws.highlight(node.evidence);
           zoom.clear();
         }}
-        onEdit={openDiagramEdit} />
+        onEdit={openDiagramEdit}
+        onOpenItem={openItem} />
     });
-  }, [zoom, segById, ws, openDiagramEdit, items]);
+  }, [zoom, segById, ws, openDiagramEdit, items, openItem]);
 
   if (!data) {
     return (
@@ -852,7 +854,11 @@ function SummaryPanel ({ summary, items, litSegs, onHover, onOpen }: {
 }
 
 // ── drill-down modal bodies ──
-function SegmentDetail ({ seg, linked }: { seg: ConversationEvent; linked: ArtifactItem[] }) {
+function SegmentDetail ({ seg, linked, onOpenItem }: {
+  seg: ConversationEvent;
+  linked: ArtifactItem[];
+  onOpenItem: (it: ArtifactItem) => void;
+}) {
   return (
     <div className="dw-modal">
       <span className="dw-modal-eyebrow">message · {formatOffset(seg.tStart)}</span>
@@ -868,9 +874,13 @@ function SegmentDetail ({ seg, linked }: { seg: ConversationEvent; linked: Artif
       </ChatBubble>
       <div className="dw-modal-sec">
         <span className="dw-modal-h">Linked to</span>
-        {linked.length === 0 ? <p className="dw-empty">Not cited by any artifact yet.</p> : linked.map(it => <span
-          key={it.id}
-          className="dw-link-row">{KIND_GLYPH[it.kind]} {it.text}</span>)}
+        {linked.length === 0 ? <p className="dw-empty">Not cited by any artifact yet.</p> : linked.map(it => (
+          <button
+            key={it.id}
+            type="button"
+            className="dw-link-row"
+            onClick={() => onOpenItem(it)}>{KIND_GLYPH[it.kind]} {it.text}</button>
+        ))}
       </div>
     </div>
   );
@@ -902,12 +912,13 @@ function ItemDetail ({ item, evidence }: { item: ArtifactItem; evidence: Convers
   );
 }
 
-function NodeDetail ({ node, linked, evidence, onHighlight, onEdit }: {
+function NodeDetail ({ node, linked, evidence, onHighlight, onEdit, onOpenItem }: {
   node: DiagramNode;
   linked: ArtifactItem[];
   evidence: ConversationEvent[];
   onHighlight: () => void;
   onEdit: () => void;
+  onOpenItem: (it: ArtifactItem) => void;
 }) {
   return (
     <div className="dw-modal">
@@ -933,11 +944,14 @@ function NodeDetail ({ node, linked, evidence, onHighlight, onEdit }: {
           <span className="dw-modal-h">Linked items · {linked.length}</span>
           <ul className="dw-linked">
             {linked.map(it => (
-              <li
-                key={it.id}
-                className={`dw-linked-item dw-linked-${it.kind}`}>
-                <span className="dw-linked-kind">{KIND_GLYPH[it.kind]} {it.kind}</span>
-                <span className="dw-linked-text">{it.text}</span>
+              <li key={it.id}>
+                <button
+                  type="button"
+                  className={`dw-linked-item dw-linked-${it.kind}`}
+                  onClick={() => onOpenItem(it)}>
+                  <span className="dw-linked-kind">{KIND_GLYPH[it.kind]} {it.kind}</span>
+                  <span className="dw-linked-text">{it.text}</span>
+                </button>
               </li>
             ))}
           </ul>

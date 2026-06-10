@@ -790,11 +790,32 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
   padding: 7px 10px;
+  font: inherit;
+  text-align: left;
   background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
   border-left: var(--peace-border-width-accent) solid var(--c, var(--peace-line));
   border-radius: var(--peace-corner-radius-sm);
   clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-linked-item:hover {
+  border-color: var(--peace-hover-border);
+  border-left-color: var(--c, var(--peace-line));
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-linked-item:focus-visible {
+  outline: none;
+  border-left-color: var(--c, var(--peace-line));
+  box-shadow: var(--peace-focus-ring);
 }
 
 .dw-linked-decision {
@@ -892,10 +913,28 @@
 }
 
 .dw-link-row {
-  padding: 6px 0;
+  display: block;
+  width: 100%;
+  padding: 6px 2px;
+  font: inherit;
   font-size: 13.5px;
+  text-align: left;
   color: var(--peace-ink);
+  background: none;
+  border: none;
   border-bottom: var(--peace-border-width) solid color-mix(in oklch, var(--peace-line) 60%, transparent);
+  cursor: var(--peace-cursor-pointer);
+  transition: color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-link-row:hover {
+  color: var(--peace-accent);
+}
+
+.dw-link-row:focus-visible {
+  outline: none;
+  color: var(--peace-accent);
+  box-shadow: var(--peace-focus-ring);
 }
 
 /* ── misc ── */
