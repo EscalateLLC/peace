@@ -1,0 +1,60 @@
+/* Stacked, dismissable workspace banners — a severity-tinted bar per notice. */
+.pk-banners {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.pk-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 8px 18px;
+  font-family: var(--peace-font-sans);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--peace-ink);
+  background: color-mix(in oklch, var(--c, var(--peace-accent)) 12%, transparent);
+  border-bottom: var(--peace-border-width) solid color-mix(in oklch, var(--c, var(--peace-accent)) 35%, transparent);
+}
+
+.pk-banner[data-sev='error'] {
+  --c: var(--peace-danger);
+}
+
+.pk-banner[data-sev='warning'] {
+  --c: var(--peace-accent-2);
+}
+
+.pk-banner[data-sev='info'] {
+  --c: var(--peace-accent);
+}
+
+.pk-banner-msg {
+  flex: 1;
+  min-width: 0;
+}
+
+.pk-banner-x {
+  flex-shrink: 0;
+  padding: 2px 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--c, var(--peace-accent));
+  background: none;
+  border: 0;
+  cursor: var(--peace-cursor-pointer);
+  opacity: 0.75;
+  transition: opacity calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.pk-banner-x:hover {
+  opacity: 1;
+}
+
+.pk-banner-x:focus-visible {
+  outline: none;
+  opacity: 1;
+  box-shadow: var(--peace-focus-ring);
+}

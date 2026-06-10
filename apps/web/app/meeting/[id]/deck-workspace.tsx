@@ -5,14 +5,17 @@ import Link from 'next/link';
 import type { ActionItem, Artifact, ConversationEvent, Decision, KeyPoint, OpenQuestion } from '@peace/core';
 import { formatOffset, type WorkspaceDataAdapter } from '@peace/ui';
 import {
+  BannerStack,
   buildTargets,
   ChatBubble,
   computeSlots,
   type DragState,
+  ErrorBoundary,
   focalRatios,
   nearestSlot,
   reorder,
   type Target,
+  useBanners,
   useExpand,
   useIntentGesture,
   useResize,
@@ -248,14 +251,47 @@ function buildFlowRows (mermaid: string | null): FlowRow[] {
 
 type AskResult = { kind: 'speak'; text: string } | { kind: 'silent'; reason: string };
 
+// Defers the panel-body render into a child component so a throw inside it is caught
+// by the surrounding ErrorBoundary — an eager `{renderPanelBody()}` would throw in the
+// parent's render, above the boundary.
+function PanelBody ({ render }: { render: () => ReactNode }) {
+  return <>{render()}</>;
+}
+
 export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
   const ws = useWorkspace(meetingId, adapter);
   const { expanded, closing, openExpand, dock } = useExpand();
   const zoom = useZoomStack();
+  const { banners, push: pushBanner, dismiss: dismissBanner } = useBanners();
 
   // Cross-link: the segment ids currently lit (from hover or a clicked evidence chip).
   const [hoverSegs, setHoverSegs] = useState<readonly string[]>([]);
   const litSegs = useMemo(() => new Set([...ws.highlightedIds, ...hoverSegs]), [ws.highlightedIds, hoverSegs]);
+
+  // Bridge transient signals into the banner stack: a load error sticks (and clears
+  // when the load recovers); delta notices auto-dismiss unless they're errors.
+  useEffect(() => {
+    if (ws.error) {
+      pushBanner({
+        severity: 'error',
+        code    : 'workspace-load',
+        message : `Failed to load workspace: ${ws.error}`
+      });
+    } else {
+      dismissBanner('code:workspace-load');
+    }
+  }, [ws.error, pushBanner, dismissBanner]);
+
+  useEffect(() => {
+    if (ws.notice) {
+      pushBanner({
+        severity: ws.notice.severity,
+        code    : ws.notice.code,
+        message : ws.notice.message,
+        ttl     : ws.notice.severity === 'error' ? undefined : 8000
+      });
+    }
+  }, [ws.notice, pushBanner]);
 
   // In the expanded workflow, which side (if any) is minimized.
   const [wfMin, setWfMin] = useState<'diagram' | 'tree' | null>(null);
@@ -663,21 +699,9 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         <ThemeMenu className="dw-theme" />
       </header>
 
-      {ws.error && <div
-        className="dw-notice"
-        data-sev="error">{ws.error}</div>}
-      {ws.notice && (
-        <div
-          className="dw-notice"
-          data-sev={ws.notice.severity}>
-          <span>{ws.notice.message}</span>
-          <button
-            type="button"
-            className="dw-notice-x"
-            aria-label="Dismiss"
-            onClick={ws.dismissNotice}>✕</button>
-        </div>
-      )}
+      <BannerStack
+        banners={banners}
+        onDismiss={dismissBanner} />
 
       <div
         className={`dw-deck${dragging ? ' dw-resizing' : ''}`}
@@ -711,7 +735,18 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
                   className="dw-dock"
                   onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to reorder' : ''}</span>}
               </div>
-              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>{renderPanelBody(p.id)}</div>
+              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
+                <ErrorBoundary
+                  resetKey={p.id}
+                  onError={error => pushBanner({
+                    severity: 'error',
+                    code    : `panel-crash-${p.id}`,
+                    message : `The ${p.title} panel hit an error: ${error.message}`
+                  })}
+                  fallback={<p className="dw-empty">This panel hit an error — see the banner. Reload to recover.</p>}>
+                  <PanelBody render={() => renderPanelBody(p.id)} />
+                </ErrorBoundary>
+              </div>
             </section>
           );
         })}

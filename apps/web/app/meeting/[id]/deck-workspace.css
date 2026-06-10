@@ -155,43 +155,6 @@
   box-shadow: var(--peace-focus-ring);
 }
 
-.dw-notice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  padding: 7px 18px;
-  font-size: 12.5px;
-  border-bottom: var(--peace-border-width) solid var(--peace-line);
-}
-
-.dw-notice[data-sev="error"] {
-  color: var(--peace-danger);
-  background: color-mix(in oklch, var(--peace-danger) 12%, transparent);
-}
-
-.dw-notice[data-sev="warning"] {
-  color: var(--peace-accent-2);
-  background: color-mix(in oklch, var(--peace-accent-2) 12%, transparent);
-}
-
-.dw-notice[data-sev="info"] {
-  color: var(--peace-accent);
-  background: color-mix(in oklch, var(--peace-accent) 10%, transparent);
-}
-
-.dw-notice span {
-  flex: 1;
-}
-
-.dw-notice-x {
-  border: 0;
-  background: none;
-  color: inherit;
-  cursor: var(--peace-cursor-pointer);
-  opacity: 0.7;
-}
-
 /* ── deck — panels are spring-positioned absolutely (transform/width/height set
    imperatively by the kit's useSpringLayout); drag a panel to reorder, drag a
    seam to resize, tap a surface to expand. ── */

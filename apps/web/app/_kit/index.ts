@@ -3,4 +3,6 @@ export * from './cx';
 
 export * from './interaction';
 
+export * from './feedback';
+
 export * from './controls/ChatBubble';
