@@ -1,19 +1,13 @@
 @import 'tailwindcss';
 
-/* Tailwind scans the shared UI package for class names. */
+/* Tailwind scans the shared UI package for class names (mockups + legacy UI). */
 @source '../../../packages/ui/src';
 
 @plugin '@tailwindcss/typography';
 
-:root {
-  color-scheme: dark;
-}
-
+/* Surface, ink, font + color-scheme now come from @peace/design's themed
+   `.peace-root` (on <body>) and the `--peace-*` tokens. */
 html,
 body {
   height: 100%;
-}
-
-body {
-  background-color: var(--color-zinc-950);
 }

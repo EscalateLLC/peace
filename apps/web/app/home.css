@@ -1,0 +1,169 @@
+/* peace — home / meeting list, authored on the @peace/design --peace-* tokens.
+   Every surface + control re-skins with the active theme (incl. the interaction
+   recipe: hover glow + border + lift, hard focus ring). */
+
+.home {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+  min-height: 100%;
+}
+
+.home-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.home-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.home-wordmark {
+  font-family: var(--peace-font-serif);
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--peace-ink-strong);
+}
+
+.home-tag {
+  font-size: 13px;
+  color: var(--peace-ink-muted);
+}
+
+.home-theme {
+  font-family: var(--peace-font-mono);
+  font-size: 12px;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  padding: 7px 10px;
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.home-theme:hover {
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+}
+
+.home-theme:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.home-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 15px 18px;
+  background: var(--peace-panel);
+  color: var(--peace-ink);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-md);
+  clip-path: var(--peace-corner-clip-md);
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    transform calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.home-card:hover {
+  background: var(--peace-hover-bg);
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+  transform: var(--peace-hover-lift);
+}
+
+.home-card:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.home-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-card-title {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--peace-ink-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-card-meta {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--peace-font-mono);
+  font-size: 11.5px;
+  color: var(--peace-ink-faint);
+}
+
+.home-status {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--peace-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--peace-ink-muted);
+  background: color-mix(in oklch, var(--peace-ink-muted) 14%, transparent);
+}
+
+.home-status[data-status="live"] {
+  color: var(--peace-positive);
+  background: color-mix(in oklch, var(--peace-positive) 16%, transparent);
+}
+
+.home-status[data-status="failed"] {
+  color: var(--peace-danger);
+  background: color-mix(in oklch, var(--peace-danger) 16%, transparent);
+}
+
+.home-empty {
+  margin-top: 64px;
+  font-size: 14px;
+  color: var(--peace-ink-muted);
+  text-align: center;
+}
+
+.home-empty p { margin: 0; }
+.home-empty p + p { margin-top: 8px; }
+
+.home-empty code {
+  padding: 2px 7px;
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: 5px;
+  font-family: var(--peace-font-mono);
+  font-size: 12px;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+}

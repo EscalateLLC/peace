@@ -12,6 +12,11 @@
   font-family: var(--peace-font-sans);
 }
 
+// color-scheme at the root themes native UI (scrollbars, form controls) light/dark.
+:root {
+  color-scheme: var(--peace-color-scheme);
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --peace-motion-scale: 0;
