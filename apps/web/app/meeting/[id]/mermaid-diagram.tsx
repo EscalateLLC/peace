@@ -1,26 +1,17 @@
 'use client';
 
-import { type CSSProperties, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useId, useRef, useState } from 'react';
 import { type Theme, useTheme } from '@peace/design';
+import { useDiagramView } from './use-diagram-view';
 
 // Light peace themes get mermaid's light render; dark themes get dark.
 const LIGHT_THEMES: ReadonlySet<Theme> = new Set<Theme>(['cloud', 'confluence', 'bubble']);
-const MIN_K = 0.25;
-const MAX_K = 4;
 
 export interface DiagramNode {
   id: string;
   label: string;
   evidence: string[];
 }
-
-interface View {
-  x: number;
-  y: number;
-  k: number;
-}
-
-const clampK = (k: number): number => Math.min(MAX_K, Math.max(MIN_K, k));
 
 /** Mermaid wraps each flowchart node as `<g class="node" id="<rid>-flowchart-<id>-<n>">`. */
 function nodeIdOf (el: Element): string | null {
@@ -44,18 +35,15 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
   const { theme } = useTheme();
   const [svg, setSvg] = useState('');
   const [failed, setFailed] = useState(false);
-  const [view, setView] = useState<View>({
-    x: 0,
-    y: 0,
-    k: 1
-  });
-  const [natural, setNatural] = useState({
-    w: 0,
-    h: 0
-  });
-  const [settling, setSettling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const rid = `dw-mmd-${useId().replace(/[:]/g, '')}`;
+  const { view, natural, loading, fit, zoomBy, pan } = useDiagramView({
+    containerRef,
+    svg,
+    expanded,
+    busy,
+    locked
+  });
 
   // Latest callbacks/data/lock, read by the (rarely re-attached) node + document listeners.
   const live = useRef({
@@ -71,10 +59,6 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     onNode,
     locked
   };
-
-  const viewRef = useRef(view);
-
-  viewRef.current = view;
 
   useEffect(() => {
     if (!source) {
@@ -116,145 +100,6 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
       cancelled = true;
     };
   }, [source, theme, rid]);
-
-  // ── viewport: fit the diagram to the container, centred ──
-  const fit = useCallback(() => {
-    const root = containerRef.current;
-    const svgEl = root?.querySelector('svg');
-
-    if (!root || !svgEl) {
-      return;
-    }
-
-    const vb = svgEl.viewBox.baseVal;
-    const cw = root.clientWidth;
-    const ch = root.clientHeight;
-
-    if (!vb.width || !vb.height || !cw || !ch) {
-      return;
-    }
-
-    // The viewport box owns the natural size (the SVG fills it 100%); the transform
-    // owns scaling — so we never mutate the SVG's own width/height (which re-renders reset).
-    setNatural({
-      w: vb.width,
-      h: vb.height
-    });
-
-    const k = clampK(Math.min(cw / vb.width, ch / vb.height) * 0.9);
-
-    setView({
-      k,
-      x: (cw - vb.width * k) / 2,
-      y: (ch - vb.height * k) / 2
-    });
-  }, []);
-
-  // Refit when the diagram renders or the panel expands/collapses.
-  useEffect(() => {
-    if (!svg) {
-      return;
-    }
-
-    const id = requestAnimationFrame(fit);
-
-    return () => cancelAnimationFrame(id);
-  }, [svg, expanded, fit]);
-
-  // Recentre on resize, but mask the reposition with a loading state instead of
-  // letting the diagram visibly snap: while the canvas is mid-resize (e.g. a pane
-  // minimises) we hide it; once the size settles we refit and reveal it centred.
-  useEffect(() => {
-    const root = containerRef.current;
-
-    if (!root) {
-      return;
-    }
-
-    let raf = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let primed = false;
-
-    const ro = new ResizeObserver(() => {
-      if (!primed) {
-        primed = true;
-        fit();
-
-        return;
-      }
-
-      setSettling(true);
-      clearTimeout(timer);
-      cancelAnimationFrame(raf);
-      timer = setTimeout(() => {
-        raf = requestAnimationFrame(() => {
-          fit();
-          setSettling(false);
-        });
-      }, 180);
-    });
-
-    ro.observe(root);
-
-    return () => {
-      ro.disconnect();
-      cancelAnimationFrame(raf);
-      clearTimeout(timer);
-    };
-  }, [fit]);
-
-  // When a parent-driven layout change (busy) ends, refit so the diagram reveals
-  // already centred in its new size.
-  useEffect(() => {
-    if (busy) {
-      return;
-    }
-
-    const id = requestAnimationFrame(fit);
-
-    return () => cancelAnimationFrame(id);
-  }, [busy, fit]);
-
-  const zoomAt = useCallback((cx: number, cy: number, factor: number) => {
-    setView(v => {
-      const k = clampK(v.k * factor);
-      const f = k / v.k;
-
-      return {
-        k,
-        x: cx - (cx - v.x) * f,
-        y: cy - (cy - v.y) * f
-      };
-    });
-  }, []);
-
-  const zoomButton = (factor: number) => () => {
-    const root = containerRef.current;
-
-    if (root) {
-      zoomAt(root.clientWidth / 2, root.clientHeight / 2, factor);
-    }
-  };
-
-  // Wheel zoom (expanded only) — a native non-passive listener so it can preventDefault.
-  useEffect(() => {
-    const root = containerRef.current;
-
-    if (!root || !expanded || locked) {
-      return;
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      // Zoom about the container centre so the diagram stays centred as it scales.
-      zoomAt(root.clientWidth / 2, root.clientHeight / 2, e.deltaY < 0 ? 1.1 : 1 / 1.1);
-    };
-
-    root.addEventListener('wheel', onWheel, { passive: false });
-
-    return () => root.removeEventListener('wheel', onWheel);
-  }, [expanded, locked, zoomAt]);
 
   // ── node hover cross-link wiring (re-wired on any SVG mutation) ──
   useEffect(() => {
@@ -367,49 +212,6 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     });
   }, [svg, litSegs, nodeEvidence]);
 
-  // ── pan (expanded only) ──
-  const pan = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
-
-  const onPanDown = (e: ReactPointerEvent) => {
-    if (e.button !== 0) {
-      return;
-    }
-
-    // A press that starts on the overlay controls/badge must reach their click —
-    // don't capture the pointer for a pan (capture would steal the button's click).
-    if (e.target instanceof Element && e.target.closest('.dw-diagram-controls, .dw-diagram-lock')) {
-      return;
-    }
-
-    e.currentTarget.setPointerCapture(e.pointerId);
-    pan.current = {
-      x : e.clientX,
-      y : e.clientY,
-      vx: viewRef.current.x,
-      vy: viewRef.current.y
-    };
-  };
-
-  const onPanMove = (e: ReactPointerEvent) => {
-    const p = pan.current;
-
-    if (!p) {
-      return;
-    }
-
-    setView(v => ({
-      ...v,
-      x: p.vx + (e.clientX - p.x),
-      y: p.vy + (e.clientY - p.y)
-    }));
-  };
-
-  const onPanUp = () => {
-    pan.current = null;
-  };
-
-  const loading = settling || busy;
-
   if (!source) {
     return <p className="dw-empty">No diagram yet — run <em>regenerate</em>.</p>;
   }
@@ -433,10 +235,10 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
         '--dw-gy': `${view.y}px`,
         '--dw-gk': view.k
       } as CSSProperties}
-      onPointerDown={expanded && !locked ? onPanDown : undefined}
-      onPointerMove={expanded && !locked ? onPanMove : undefined}
-      onPointerUp={expanded && !locked ? onPanUp : undefined}
-      onPointerCancel={expanded && !locked ? onPanUp : undefined}
+      onPointerDown={expanded && !locked ? pan.onPointerDown : undefined}
+      onPointerMove={expanded && !locked ? pan.onPointerMove : undefined}
+      onPointerUp={expanded && !locked ? pan.onPointerUp : undefined}
+      onPointerCancel={expanded && !locked ? pan.onPointerUp : undefined}
     >
       <div
         className="dw-mermaid-vp"
@@ -472,13 +274,13 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
           <button
             type="button"
             className="dw-dgc"
-            onClick={zoomButton(1.2)}
+            onClick={() => zoomBy(1.2)}
             disabled={locked}
             aria-label="Zoom in">+</button>
           <button
             type="button"
             className="dw-dgc"
-            onClick={zoomButton(1 / 1.2)}
+            onClick={() => zoomBy(1 / 1.2)}
             disabled={locked}
             aria-label="Zoom out">−</button>
           <button
