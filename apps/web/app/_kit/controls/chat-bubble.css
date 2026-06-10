@@ -1,0 +1,176 @@
+/*
+ * ChatBubble — opinionated DEFAULT styles. Transparent + overrideable: target
+ * `.pk-bubble` / its `data-part`s, or retheme via the `--pk-*` tokens. The
+ * speaker color rides on a per-bubble `--c` var (falls back to the accent).
+ */
+
+.pk-bubble {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 11px;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  cursor: inherit;
+  transform-origin: left center;
+  transition: background 150ms, border-color 150ms, transform 170ms var(--pk-ease, ease);
+  font-family: var(--pk-font-sans, system-ui, sans-serif);
+}
+
+.pk-bubble:hover {
+  background: color-mix(in oklch, var(--pk-accent) 8%, transparent);
+  border-left-color: color-mix(in oklch, var(--pk-accent) 40%, transparent);
+}
+
+.pk-bubble[data-selected] {
+  background: color-mix(in oklch, var(--pk-accent) 14%, transparent);
+  border-left-color: var(--pk-accent);
+}
+
+/* Compact: zoom-for-visibility — the hovered message magnifies + lifts so it's
+   legible in a dense feed, without maximizing its surface. */
+.pk-bubble[data-density="compact"]:hover {
+  transform: scale(1.035);
+  position: relative;
+  z-index: 2;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px -18px oklch(0% 0 0deg / 78%);
+}
+
+.pk-bubble__avatar { display: none; }
+.pk-bubble__main { display: block; }
+
+.pk-bubble__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.pk-bubble__name {
+  font-family: var(--pk-font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--c, var(--pk-accent));
+}
+
+.pk-bubble__time {
+  font-family: var(--pk-font-mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  color: var(--pk-ink-faint);
+}
+
+.pk-bubble__text {
+  display: block;
+  font-size: 13px;
+  line-height: 1.48;
+  color: var(--pk-ink);
+}
+
+.pk-bubble[data-variant="bot"] .pk-bubble__text {
+  color: var(--pk-ink-muted);
+  font-style: italic;
+}
+
+.pk-bubble[data-interim] .pk-bubble__text {
+  color: var(--pk-ink-faint);
+  font-style: italic;
+}
+
+.pk-bubble__caret {
+  display: inline-block;
+  width: 8px;
+  height: 1px;
+  background: var(--pk-accent-2, var(--pk-accent));
+  margin-left: 3px;
+  vertical-align: middle;
+  animation: pk-write 1.2s ease-in-out infinite;
+}
+
+@keyframes pk-write {
+  0%, 100% {
+    width: 4px;
+    opacity: 0.4;
+  }
+
+  50% {
+    width: 10px;
+    opacity: 0.9;
+  }
+}
+
+/* Comfortable: a roomy reading row — avatar appears, type breathes, same-speaker
+   runs group together. */
+.pk-bubble[data-density="comfortable"] {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 760px;
+  padding: 14px;
+  border-left: 0;
+  border-radius: 12px;
+}
+
+.pk-bubble[data-density="comfortable"]:hover {
+  background: color-mix(in oklch, var(--pk-accent) 6%, transparent);
+  border-left: 0;
+}
+
+.pk-bubble[data-density="comfortable"][data-selected] {
+  background: color-mix(in oklch, var(--pk-accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--pk-accent);
+  border-left: 0;
+}
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--c, var(--pk-accent)) 20%, transparent);
+  border: 1px solid color-mix(in oklch, var(--c, var(--pk-accent)) 55%, transparent);
+  color: var(--c, var(--pk-accent));
+  font-family: var(--pk-font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__head {
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__name {
+  font-family: var(--pk-font-sans, system-ui, sans-serif);
+  font-size: 14px;
+}
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__time { font-size: 11px; }
+
+.pk-bubble[data-density="comfortable"] .pk-bubble__text {
+  font-size: 16px;
+  line-height: 1.64;
+  color: var(--pk-ink-strong);
+}
+
+.pk-bubble[data-density="comfortable"][data-grouped] {
+  padding-top: 1px;
+  margin-top: -8px;
+}
+
+.pk-bubble[data-density="comfortable"][data-grouped] .pk-bubble__avatar {
+  visibility: hidden;
+  height: 0;
+}
+
+.pk-bubble[data-density="comfortable"][data-grouped] .pk-bubble__head { display: none; }

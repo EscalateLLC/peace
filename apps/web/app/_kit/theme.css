@@ -1,0 +1,37 @@
+/*
+ * peace kit — opinionated DEFAULT theme.
+ *
+ * This is a *suggestion, not a contract*. Import it once to get the intended
+ * look out of the box; override any `--pk-*` variable (on :root or any closer
+ * ancestor) to retheme; or don't import it at all and dress the controls from
+ * scratch by targeting their stable `data-part` hooks / `.pk-*` classes.
+ *
+ * Fonts map to whatever the app provides (e.g. next/font CSS variables) and
+ * fall back to system stacks, so controls render reasonably with no app setup.
+ */
+
+:root {
+  /* surfaces */
+  --pk-field: oklch(14.% 0.012 250deg);
+  --pk-panel: oklch(17.5% 0.014 250deg);
+  --pk-raised: oklch(22% 0.016 250deg);
+  --pk-line: oklch(84% 0.12 205deg / 22%);
+
+  /* accents */
+  --pk-accent: oklch(84% 0.12 205deg);   /* cyan */
+  --pk-accent-2: oklch(82% 0.15 75deg);  /* amber */
+
+  /* ink (text) */
+  --pk-ink-strong: oklch(96% 0.01 230deg);
+  --pk-ink: oklch(80% 0.015 230deg);
+  --pk-ink-muted: oklch(60% 0.02 230deg);
+  --pk-ink-faint: oklch(46% 0.02 230deg);
+
+  /* type */
+  --pk-font-sans: var(--font-hanken, system-ui, sans-serif);
+  --pk-font-mono: var(--font-mono, ui-monospace, "SFMono-Regular", monospace);
+  --pk-font-serif: var(--font-fraunces, Georgia, serif);
+
+  /* motion */
+  --pk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
