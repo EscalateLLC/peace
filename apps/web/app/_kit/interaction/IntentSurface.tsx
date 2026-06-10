@@ -98,6 +98,34 @@ export function useIntentGesture (o: IntentGestureOptions) {
     };
   }, []);
 
+  // Resolve a pointer's intent, with the "frame" override: the outer band of a panel
+  // is a drag handle that takes PRIORITY over content — pressing the inset margin
+  // drags the panel even over a bubble/card. Genuine controls still own their click.
+  // The frame's rest cursor is grab, so the edges advertise drag, the interior zoom.
+  const resolve = (e: ReactPointerEvent): { intent: Intent; frame: boolean } => {
+    const base = resolveIntent({
+      target: e.target instanceof Element ? e.target : null,
+      controlSelector
+    });
+
+    if (base === 'control') {
+      return {
+        intent: 'control',
+        frame : false
+      };
+    }
+
+    const r = e.currentTarget.getBoundingClientRect();
+    const dx = Math.min(e.clientX - r.left, r.right - e.clientX) / (r.width || 1);
+    const dy = Math.min(e.clientY - r.top, r.bottom - e.clientY) / (r.height || 1);
+    const frame = dx < frameInset || dy < frameInset;
+
+    return {
+      intent: frame ? 'surface' : base, // the frame band drags the panel, over content
+      frame
+    };
+  };
+
   const onPointerDown = (id: Id) => (e: ReactPointerEvent) => {
     suppressClick.current = false; // a new press clears any stale post-drag suppression
 
@@ -105,10 +133,7 @@ export function useIntentGesture (o: IntentGestureOptions) {
       return;
     }
 
-    const intent = resolveIntent({
-      target: e.target,
-      controlSelector
-    });
+    const { intent } = resolve(e);
 
     if (intent === 'control') {
       return; // action controls own their click and aren't drag handles
@@ -135,22 +160,7 @@ export function useIntentGesture (o: IntentGestureOptions) {
       return;
     }
 
-    const intent = resolveIntent({
-      target: e.target,
-      controlSelector
-    });
-
-    // The "frame" is the outer band of a surface — its rest cursor is grab, so
-    // the edges advertise drag while the interior advertises zoom.
-    let frame = false;
-
-    if (intent === 'surface') {
-      const r = e.currentTarget.getBoundingClientRect();
-      const dx = Math.min(e.clientX - r.left, r.right - e.clientX) / (r.width || 1);
-      const dy = Math.min(e.clientY - r.top, r.bottom - e.clientY) / (r.height || 1);
-
-      frame = dx < frameInset || dy < frameInset;
-    }
+    const { intent, frame } = resolve(e);
 
     setHover({
       id,

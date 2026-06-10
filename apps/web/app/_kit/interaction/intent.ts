@@ -21,9 +21,12 @@ function asIntent (value: string | null): Intent | null {
 
 /**
  * Resolve the intent for a pointer target:
- *   1. a genuine control (or `[data-intent="control"]`) → `control`;
- *   2. otherwise the nearest `[data-intent]` ancestor's value (`content` / `surface`);
- *   3. otherwise `surface` (the inherited default).
+ *   1. an explicit `data-intent` on (or inside) the nearest control wins — e.g.
+ *      `<button data-intent="content">` is `content`, an author override, so it
+ *      drags/zooms with its surface instead of being treated as an action control;
+ *   2. otherwise a genuine control → `control` (even inside a content region);
+ *   3. otherwise the nearest `[data-intent]` ancestor's value (`content` / `surface`);
+ *   4. otherwise `surface` (the inherited default).
  */
 export function resolveIntent (opts: { target: Element | null; controlSelector?: string }): Intent {
   const { target } = opts;
@@ -33,13 +36,16 @@ export function resolveIntent (opts: { target: Element | null; controlSelector?:
     return 'surface';
   }
 
-  if (target.closest(controlSelector)) {
-    return 'control';
-  }
-
+  const control = target.closest(controlSelector);
   const marked = target.closest('[data-intent]');
 
-  return marked ? asIntent(marked.getAttribute('data-intent')) ?? 'surface' : 'surface';
+  // An explicit data-intent wins when it sits on (or inside) the nearest control;
+  // a genuine control with no data-intent of its own stays control.
+  if (marked && (!control || control.contains(marked))) {
+    return asIntent(marked.getAttribute('data-intent')) ?? 'surface';
+  }
+
+  return control ? 'control' : 'surface';
 }
 
 /**

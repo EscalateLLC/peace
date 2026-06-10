@@ -247,6 +247,9 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   }, []);
 
   const gesture = useIntentGesture({
+    // Thinner drag-edge band (default is 0.15) — the grab-cursor frame is less
+    // intrusive, leaving more of the panel as the tap-to-zoom interior.
+    frameInset         : 0.0918,
     isExpanded         : id => expanded === id,
     onZoomTap          : id => (expanded === id ? dock() : openExpand(id)),
     onExpandedDragStart: () => dock(),
@@ -389,6 +392,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         source={diagramSource}
         nodeEvidence={diagramNodeEvidence}
         litSegs={litSegs}
+        expanded={expanded === id}
         onHover={setHoverSegs}
         onNode={openNode} />;
     }
@@ -484,7 +488,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
                   className="dw-dock"
                   onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to reorder' : ''}</span>}
               </div>
-              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}`}>{renderPanelBody(p.id)}</div>
+              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>{renderPanelBody(p.id)}</div>
             </section>
           );
         })}

@@ -351,7 +351,10 @@
   border-left: var(--peace-border-width-accent) solid var(--c, var(--peace-line));
   border-radius: var(--peace-corner-radius-md);
   clip-path: var(--peace-corner-clip-md);
-  cursor: var(--peace-cursor-pointer);
+
+  /* Inherit the panel's intent cursor (zoom-in as content, grab in the drag frame)
+     rather than hardcoding pointer — else the card masks the frame's drag cursor. */
+  cursor: inherit;
   transition:
     background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
     border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
@@ -433,16 +436,94 @@
   color: var(--peace-accent-2);
 }
 
-/* ── mermaid ── */
-.dw-mermaid {
-  display: flex;
-  justify-content: center;
-  padding: 12px;
+/* ── mermaid diagram canvas ── */
+
+/* The workflow body insets the canvas so it doesn't run edge-to-edge — the diagram
+   reads as a clean, framed canvas with breathing room from the panel. */
+.dw-body-canvas {
+  padding: 14px;
+  overflow: hidden;
 }
 
-.dw-mermaid svg {
-  max-width: 100%;
-  height: auto;
+.dw-body-canvas.dw-body-expanded {
+  padding: 24px;
+}
+
+.dw-mermaid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  overflow: hidden;
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-md);
+  clip-path: var(--peace-corner-clip-md);
+
+  /* A faint dotted grid that pans + scales WITH the diagram (Figma-style canvas). */
+  --dw-grid: color-mix(in oklch, var(--peace-line) 70%, transparent);
+
+  background-color: color-mix(in oklch, var(--peace-bg) 55%, transparent);
+  background-image: radial-gradient(circle, var(--dw-grid) 1px, transparent 1.5px);
+  background-size: calc(22px * var(--dw-gk, 1)) calc(22px * var(--dw-gk, 1));
+  background-position: var(--dw-gx, 0) var(--dw-gy, 0);
+}
+
+/* Expanded → the diagram is a pannable canvas. */
+.dw-mermaid[data-expanded] {
+  cursor: var(--peace-cursor-grab, grab);
+  touch-action: none;
+}
+
+.dw-mermaid[data-expanded]:active {
+  cursor: var(--peace-cursor-grabbing, grabbing);
+}
+
+.dw-mermaid-vp {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.dw-mermaid-vp svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+/* Zoom / fit controls (expanded). */
+.dw-diagram-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dw-dgc {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+  transition: border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-dgc:hover {
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
 }
 
 .dw-dock {

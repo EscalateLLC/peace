@@ -1,51 +1,64 @@
 import { describe, expect, it } from 'vitest';
 import { deriveCursor, resolveIntent } from './intent';
 
-// A minimal fake Element with just the `closest` behaviour resolveIntent needs
-// (node env — no jsdom). `isControl` answers the control selector; `intent`
-// answers the `[data-intent]` lookup.
-function fakeTarget (opts: { isControl?: boolean; intent?: string }): Element {
-  return {
-    closest (sel: string) {
-      if (sel === '[data-intent]') {
-        if (opts.intent === undefined) {
-          return null;
-        }
+// A fake Element chain (node env — no jsdom), innermost (target) first. Each level
+// is `{ control?, intent? }`; `closest` walks outward and `contains` answers
+// ancestry, which is what resolveIntent needs to tell "the control IS the marked
+// element" from "the control sits inside a marked region".
+function chain (...levels: { control?: boolean; intent?: string }[]): Element {
+  const isControl = (l: { control?: boolean; intent?: string }) => Boolean(l.control) || l.intent === 'control';
 
-        return { getAttribute: () => opts.intent } as unknown as Element;
+  const wrap = (start: number): Element => ({
+    closest (sel: string) {
+      for (let i = start; i < levels.length; i++) {
+        const want = sel === '[data-intent]' ? levels[i]!.intent !== undefined : isControl(levels[i]!);
+
+        if (want) {
+          return wrap(i);
+        }
       }
 
-      return opts.isControl ? ({} as Element) : null;
-    }
-  } as unknown as Element;
+      return null;
+    },
+    contains    : (other: Element) => start >= (other as unknown as { __idx: number }).__idx,
+    getAttribute: () => levels[start]!.intent ?? null,
+    __idx       : start
+  } as unknown as Element);
+
+  return wrap(0);
 }
 
 describe('resolveIntent', () => {
   it('defaults to surface for an empty / unmarked target', () => {
     expect(resolveIntent({ target: null })).toBe('surface');
-    expect(resolveIntent({ target: fakeTarget({}) })).toBe('surface');
+    expect(resolveIntent({ target: chain({}) })).toBe('surface');
   });
 
   it('classifies genuine controls as control', () => {
-    expect(resolveIntent({ target: fakeTarget({ isControl: true }) })).toBe('control');
+    expect(resolveIntent({ target: chain({ control: true }) })).toBe('control');
   });
 
   it('inherits the nearest data-intent ancestor', () => {
-    expect(resolveIntent({ target: fakeTarget({ intent: 'content' }) })).toBe('content');
-    expect(resolveIntent({ target: fakeTarget({ intent: 'surface' }) })).toBe('surface');
+    expect(resolveIntent({ target: chain({ intent: 'content' }) })).toBe('content');
+    expect(resolveIntent({ target: chain({ intent: 'surface' }) })).toBe('surface');
   });
 
   it('ignores an unknown data-intent value and falls back to surface', () => {
-    expect(resolveIntent({ target: fakeTarget({ intent: 'bogus' }) })).toBe('surface');
+    expect(resolveIntent({ target: chain({ intent: 'bogus' }) })).toBe('surface');
   });
 
-  it('lets a genuine control win even inside a content region', () => {
+  it('lets an explicit data-intent on a control override it (e.g. <button data-intent="content">)', () => {
     expect(resolveIntent({
-      target: fakeTarget({
-        isControl: true,
-        intent   : 'content'
+      target: chain({
+        control: true,
+        intent : 'content'
       })
-    })).toBe('control');
+    })).toBe('content');
+  });
+
+  it('still lets a genuine control win when the content region is only an ancestor', () => {
+    // target IS the control; the content marking sits on an ancestor → control wins
+    expect(resolveIntent({ target: chain({ control: true }, { intent: 'content' }) })).toBe('control');
   });
 });
 
