@@ -27,7 +27,7 @@ function nodeIdOf (el: Element): string | null {
   return el.id.match(/-flowchart-(.+)-\d+$/)?.[1] ?? null;
 }
 
-export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode, expanded, busy }: {
+export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode, expanded, busy, locked, onToggleLock }: {
   source: string | null;
   nodeEvidence: Record<string, string[]>;
   litSegs: ReadonlySet<string>;
@@ -35,6 +35,11 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
   onNode: (node: DiagramNode) => void;
   expanded: boolean;
   busy: boolean;
+
+  // When locked, the diagram is under agent control: user pan / zoom / drill are
+  // suspended and a locked affordance shows. The reposition itself rides `busy`.
+  locked: boolean;
+  onToggleLock: () => void;
 }) {
   const { theme } = useTheme();
   const [svg, setSvg] = useState('');
@@ -52,17 +57,19 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
   const containerRef = useRef<HTMLDivElement>(null);
   const rid = `dw-mmd-${useId().replace(/[:]/g, '')}`;
 
-  // Latest callbacks/data, read by the (rarely re-attached) node listeners.
+  // Latest callbacks/data/lock, read by the (rarely re-attached) node + document listeners.
   const live = useRef({
     nodeEvidence,
     onHover,
-    onNode
+    onNode,
+    locked
   });
 
   live.current = {
     nodeEvidence,
     onHover,
-    onNode
+    onNode,
+    locked
   };
 
   const viewRef = useRef(view);
@@ -233,7 +240,7 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
   useEffect(() => {
     const root = containerRef.current;
 
-    if (!root || !expanded) {
+    if (!root || !expanded || locked) {
       return;
     }
 
@@ -247,7 +254,7 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     root.addEventListener('wheel', onWheel, { passive: false });
 
     return () => root.removeEventListener('wheel', onWheel);
-  }, [expanded, zoomAt]);
+  }, [expanded, locked, zoomAt]);
 
   // ── node hover cross-link wiring (re-wired on any SVG mutation) ──
   useEffect(() => {
@@ -328,7 +335,7 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
     };
 
     const onUp = (e: PointerEvent) => {
-      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) {
+      if (down && !live.current.locked && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) {
         live.current.onNode(down.node);
       }
 
@@ -365,6 +372,12 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
 
   const onPanDown = (e: ReactPointerEvent) => {
     if (e.button !== 0) {
+      return;
+    }
+
+    // A press that starts on the overlay controls/badge must reach their click —
+    // don't capture the pointer for a pan (capture would steal the button's click).
+    if (e.target instanceof Element && e.target.closest('.dw-diagram-controls, .dw-diagram-lock')) {
       return;
     }
 
@@ -414,15 +427,16 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
       data-intent={expanded ? 'control' : undefined}
       data-expanded={expanded || undefined}
       data-settling={loading || undefined}
+      data-locked={locked || undefined}
       style={{
         '--dw-gx': `${view.x}px`,
         '--dw-gy': `${view.y}px`,
         '--dw-gk': view.k
       } as CSSProperties}
-      onPointerDown={expanded ? onPanDown : undefined}
-      onPointerMove={expanded ? onPanMove : undefined}
-      onPointerUp={expanded ? onPanUp : undefined}
-      onPointerCancel={expanded ? onPanUp : undefined}
+      onPointerDown={expanded && !locked ? onPanDown : undefined}
+      onPointerMove={expanded && !locked ? onPanMove : undefined}
+      onPointerUp={expanded && !locked ? onPanUp : undefined}
+      onPointerCancel={expanded && !locked ? onPanUp : undefined}
     >
       <div
         className="dw-mermaid-vp"
@@ -440,6 +454,17 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
           <span className="dw-mermaid-spin" />
         </div>
       )}
+      {locked && (
+        <button
+          type="button"
+          className="dw-diagram-lock"
+          data-intent="control"
+          onClick={onToggleLock}
+          aria-label="Unlock diagram">
+          <span aria-hidden="true">🔒</span>
+          <span className="dw-diagram-lock-text">Locked</span>
+        </button>
+      )}
       {expanded && (
         <div
           className="dw-diagram-controls"
@@ -448,17 +473,27 @@ export function MermaidDiagram ({ source, nodeEvidence, litSegs, onHover, onNode
             type="button"
             className="dw-dgc"
             onClick={zoomButton(1.2)}
+            disabled={locked}
             aria-label="Zoom in">+</button>
           <button
             type="button"
             className="dw-dgc"
             onClick={zoomButton(1 / 1.2)}
+            disabled={locked}
             aria-label="Zoom out">−</button>
           <button
             type="button"
             className="dw-dgc"
             onClick={fit}
+            disabled={locked}
             aria-label="Fit to view">⊡</button>
+          <button
+            type="button"
+            className="dw-dgc"
+            onClick={onToggleLock}
+            data-on={locked || undefined}
+            aria-pressed={locked}
+            aria-label={locked ? 'Unlock diagram' : 'Lock diagram'}>{locked ? '🔓' : '🔒'}</button>
         </div>
       )}
     </div>

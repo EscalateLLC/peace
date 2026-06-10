@@ -265,6 +265,10 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   const busyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const layoutMounted = useRef(false);
 
+  // Agent-control lock: suspends user pan/zoom/drill on the diagram. Toggled
+  // manually for now; the conversational agent will drive this same flag.
+  const [diagramLocked, setDiagramLocked] = useState(false);
+
   useEffect(() => {
     if (!layoutMounted.current) {
       layoutMounted.current = true;
@@ -535,6 +539,8 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         litSegs={litSegs}
         expanded={expanded === id}
         busy={diagramBusy}
+        locked={diagramLocked}
+        onToggleLock={() => setDiagramLocked(v => !v)}
         onHover={setHoverSegs}
         onNode={openNode} />;
 

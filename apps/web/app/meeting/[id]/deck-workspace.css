@@ -700,9 +700,62 @@
     box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
 }
 
-.dw-dgc:hover {
+.dw-dgc:not(:disabled):hover {
   border-color: var(--peace-hover-border);
   box-shadow: var(--peace-hover-glow);
+}
+
+.dw-dgc:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.dw-dgc[data-on] {
+  color: var(--peace-accent);
+  border-color: var(--peace-accent);
+}
+
+.dw-dgc:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--peace-line);
+  box-shadow: none;
+}
+
+/* agent-control lock: the diagram is read-only while an agent (or the user) holds it */
+.dw-mermaid[data-locked] {
+  cursor: default;
+}
+
+.dw-diagram-lock {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  font-family: var(--peace-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--peace-accent);
+  background: color-mix(in oklab, var(--peace-panel) 86%, transparent);
+  border: var(--peace-border-width-accent) solid var(--peace-accent);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+  transition: box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-diagram-lock:hover {
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-diagram-lock:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
 }
 
 /* ── workflow flow outline (bottom of the split) ── */
