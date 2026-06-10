@@ -532,3 +532,80 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ── diagram node cross-link ── */
+.dw-mermaid .node.dw-node-link {
+  cursor: var(--peace-cursor-zoom-in);
+}
+
+.dw-mermaid .node.dw-node-link:hover {
+  filter: drop-shadow(0 0 5px var(--peace-accent));
+}
+
+.dw-mermaid .node.dw-node-lit {
+  filter: drop-shadow(0 0 7px var(--peace-accent));
+}
+
+.dw-mermaid .node.dw-node-lit :is(rect, polygon, circle, ellipse, path) {
+  stroke: var(--peace-accent) !important;
+  stroke-width: 2.5px !important;
+}
+
+/* ── modal actions + diagram editor ── */
+.dw-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dw-act {
+  padding: 7px 13px;
+  font-family: var(--peace-font-mono);
+  font-size: 12px;
+  color: var(--peace-ink);
+  background: var(--peace-raised);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  clip-path: var(--peace-corner-clip-sm);
+  cursor: var(--peace-cursor-pointer);
+  transition:
+    background calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    border-color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-act:hover:not(:disabled) {
+  background: var(--peace-hover-bg);
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-act:focus-visible {
+  outline: none;
+  box-shadow: var(--peace-focus-ring);
+}
+
+.dw-act:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dw-editor {
+  width: 100%;
+  min-height: 240px;
+  padding: 12px;
+  font-family: var(--peace-font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--peace-ink);
+  background: var(--peace-field);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm);
+  resize: vertical;
+}
+
+.dw-editor:focus-visible {
+  outline: none;
+  border-color: var(--peace-accent);
+  box-shadow: var(--peace-focus-ring);
+}

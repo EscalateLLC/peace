@@ -21,7 +21,7 @@ import {
   ZoomStack
 } from '../../_kit';
 import { useWorkspace } from './use-workspace';
-import { MermaidDiagram } from './mermaid-diagram';
+import { type DiagramNode, MermaidDiagram } from './mermaid-diagram';
 import { ThemeMenu } from '../../theme-menu';
 import './deck-workspace.css';
 
@@ -177,10 +177,10 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
       return;
     }
 
-    const measure = () => setSize({
+    const measure = () => setSize(prev => (prev.w === el.clientWidth && prev.h === el.clientHeight ? prev : {
       w: el.clientWidth,
       h: el.clientHeight
-    });
+    }));
 
     measure();
     roRef.current = new ResizeObserver(measure);
@@ -327,6 +327,41 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     });
   }, [zoom, segById]);
 
+  const diagramSource = diagram ? (diagram.content as { mermaid: string }).mermaid : null;
+  const diagramNodeEvidence = diagram ? (diagram.content as { nodeEvidence?: Record<string, string[]> }).nodeEvidence ?? {} : {};
+
+  const openDiagramEdit = useCallback(() => {
+    if (!diagramSource) {
+      return;
+    }
+
+    zoom.zoom({
+      key  : 'diagram-edit',
+      title: 'Edit diagram',
+      body : <DiagramEditor
+        source={diagramSource}
+        onSave={async next => {
+          await ws.saveDiagram(next);
+          zoom.clear();
+        }} />
+    });
+  }, [zoom, diagramSource, ws]);
+
+  const openNode = useCallback((node: DiagramNode) => {
+    zoom.zoom({
+      key  : `node-${node.id}`,
+      title: node.label,
+      body : <NodeDetail
+        node={node}
+        evidence={node.evidence.map(id => segById.get(id)).filter(Boolean) as ConversationEvent[]}
+        onHighlight={() => {
+          ws.highlight(node.evidence);
+          zoom.clear();
+        }}
+        onEdit={openDiagramEdit} />
+    });
+  }, [zoom, segById, ws, openDiagramEdit]);
+
   if (!data) {
     return (
       <div className="dw-root">
@@ -350,7 +385,12 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     }
 
     if (id === 'workflow') {
-      return <MermaidDiagram source={diagram ? (diagram.content as { mermaid: string }).mermaid : null} />;
+      return <MermaidDiagram
+        source={diagramSource}
+        nodeEvidence={diagramNodeEvidence}
+        litSegs={litSegs}
+        onHover={setHoverSegs}
+        onNode={openNode} />;
     }
 
     return (
@@ -606,6 +646,81 @@ function ItemDetail ({ item, evidence }: { item: ArtifactItem; evidence: Convers
             {seg.text}
           </ChatBubble>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function NodeDetail ({ node, evidence, onHighlight, onEdit }: {
+  node: DiagramNode;
+  evidence: ConversationEvent[];
+  onHighlight: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="dw-modal">
+      <span className="dw-modal-eyebrow">diagram node</span>
+      <h3 className="dw-modal-title">{node.label}</h3>
+      <div className="dw-modal-actions">
+        <button
+          type="button"
+          className="dw-act"
+          onClick={onHighlight}>◈ Highlight in transcript</button>
+        <button
+          type="button"
+          className="dw-act"
+          onClick={onEdit}>✎ Edit diagram</button>
+        <button
+          type="button"
+          className="dw-act"
+          disabled
+          title="The conversational agent isn't wired to this action yet">✦ Ask peace</button>
+      </div>
+      <div className="dw-modal-sec">
+        <span className="dw-modal-h">Evidence · {evidence.length}</span>
+        {evidence.length === 0 ? <p className="dw-empty">No linked segments.</p> : evidence.map(seg => (
+          <ChatBubble
+            key={seg.id}
+            speaker={seg.speakerLabel}
+            speakerColor={speakerColor(seg.speakerId)}
+            initials={initials(seg.speakerLabel)}
+            time={formatOffset(seg.tStart)}
+            variant={seg.speakerId.startsWith('peace:') ? 'bot' : 'default'}
+            density="comfortable"
+          >
+            {seg.text}
+          </ChatBubble>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiagramEditor ({ source, onSave }: { source: string; onSave: (next: string) => Promise<void> }) {
+  const [val, setVal] = useState(source);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="dw-modal">
+      <span className="dw-modal-eyebrow">edit diagram · mermaid source</span>
+      <textarea
+        className="dw-editor"
+        spellCheck={false}
+        value={val}
+        onChange={e => setVal(e.target.value)}
+      />
+      <div className="dw-modal-actions">
+        <button
+          type="button"
+          className="dw-act"
+          disabled={saving}
+          onClick={() => {
+            setSaving(true);
+            onSave(val).catch(() => setSaving(false));
+          }}
+        >
+          {saving ? 'saving…' : 'Save new version'}
+        </button>
       </div>
     </div>
   );
