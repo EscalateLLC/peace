@@ -541,9 +541,9 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
       const tree = <WorkflowTree
         rows={flowRows}
         nodeEvidence={diagramNodeEvidence}
+        segById={segById}
         litSegs={litSegs}
-        onHover={setHoverSegs}
-        onNode={openNode} />;
+        onHover={setHoverSegs} />;
 
       // Expanded → diagram on the left, the flow outline on the right; either side
       // minimises to a thin rail. Collapsed → the diagram up top, the outline below.
@@ -759,13 +759,28 @@ function Transcript ({ segments, litSegs, dense, onHover, onOpen }: {
 }
 
 // ── workflow flow outline (cross-links to the diagram + transcript) ──
-function WorkflowTree ({ rows, nodeEvidence, litSegs, onHover, onNode }: {
+function WorkflowTree ({ rows, nodeEvidence, segById, litSegs, onHover }: {
   rows: FlowRow[];
   nodeEvidence: Record<string, string[]>;
+  segById: Map<string, ConversationEvent>;
   litSegs: ReadonlySet<string>;
   onHover: (segIds: readonly string[]) => void;
-  onNode: (node: DiagramNode) => void;
 }) {
+  // A row expands its cited transcript inline (read evidence in place) rather than
+  // opening the drill modal — the diagram node remains the full-drill path.
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = (id: string) => setOpen(prev => {
+    const next = new Set(prev);
+
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+
+    return next;
+  });
+
   return (
     <div
       className="dw-workflow-tree"
@@ -776,6 +791,8 @@ function WorkflowTree ({ rows, nodeEvidence, litSegs, onHover, onNode }: {
         {rows.map(row => {
           const evidence = nodeEvidence[row.id] ?? [];
           const lit = evidence.some(segId => litSegs.has(segId));
+          const hasEvi = evidence.length > 0;
+          const isOpen = hasEvi && open.has(row.id);
 
           return (
             <li
@@ -787,19 +804,41 @@ function WorkflowTree ({ rows, nodeEvidence, litSegs, onHover, onNode }: {
                 data-intent="content"
                 className="dw-tree-node"
                 data-on={lit || undefined}
+                data-open={isOpen || undefined}
+                aria-expanded={hasEvi ? isOpen : undefined}
                 onMouseEnter={() => onHover(evidence)}
                 onMouseLeave={() => onHover([])}
-                onClick={() => onNode({
-                  id   : row.id,
-                  label: row.label,
-                  evidence
-                })}>
-                <span
+                onClick={() => hasEvi && toggle(row.id)}>
+                {hasEvi ? <span
+                  className="dw-tree-caret"
+                  aria-hidden="true">▸</span> : <span
                   className="dw-tree-tick"
-                  aria-hidden="true" />
+                  aria-hidden="true" />}
                 <span className="dw-tree-label">{row.label}</span>
-                {evidence.length > 0 && <span className="dw-chip">◈ {evidence.length}</span>}
+                {hasEvi && <span className="dw-chip">◈ {evidence.length}</span>}
               </button>
+              {isOpen && (
+                <ul className="dw-tree-evi">
+                  {evidence.map(segId => {
+                    const seg = segById.get(segId);
+
+                    if (!seg) {
+                      return null;
+                    }
+
+                    return (
+                      <li
+                        key={segId}
+                        className="dw-tree-evi-row">
+                        <span
+                          className="dw-tree-evi-spk"
+                          style={{ color: speakerColor(seg.speakerId) }}>{seg.speakerLabel}</span>
+                        <span className="dw-tree-evi-text">{seg.text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           );
         })}

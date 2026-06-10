@@ -776,6 +776,54 @@
   text-overflow: ellipsis;
 }
 
+.dw-tree-caret {
+  flex-shrink: 0;
+  width: 6px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--peace-ink-faint);
+  transition: transform calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease),
+    color calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-tree-node[data-open] .dw-tree-caret {
+  transform: rotate(90deg);
+}
+
+.dw-tree-node[data-on] .dw-tree-caret {
+  color: var(--peace-accent);
+}
+
+/* the cited transcript, read in place under a flow row */
+.dw-tree-evi {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0 5px;
+  padding: 0 8px 0 calc(22px + var(--depth, 0) * 16px);
+  list-style: none;
+}
+
+.dw-tree-evi-row {
+  display: flex;
+  gap: 6px;
+  padding: 3px 0 3px 9px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-left: var(--peace-border-width-accent) solid color-mix(in oklab, var(--peace-line) 70%, transparent);
+}
+
+.dw-tree-evi-spk {
+  flex-shrink: 0;
+  font-family: var(--peace-font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.dw-tree-evi-text {
+  color: var(--peace-ink-muted);
+}
+
 /* ── linked artifacts inside the node drill ── */
 .dw-linked {
   display: flex;
