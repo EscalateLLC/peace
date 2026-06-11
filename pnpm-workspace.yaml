@@ -41,6 +41,7 @@ catalog:
   sass: 1.100.0 # SCSS authoring for @peace/design (pure JS — no native build)
   mermaid: 11.15.0
   react-markdown: 10.1.0
+  react-grid-layout: 2.2.3 # 2-D draggable/resizable workspace grid behind a flag (pure JS — ships its own types)
 
   # data
   drizzle-orm: 0.44.7

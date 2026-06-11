@@ -22,6 +22,7 @@
     "better-sqlite3": "catalog:",
     "mermaid": "catalog:",
     "next": "catalog:",
+    "react-grid-layout": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "zod": "catalog:"

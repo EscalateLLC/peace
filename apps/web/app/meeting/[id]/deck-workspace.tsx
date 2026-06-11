@@ -17,6 +17,8 @@ import { useWorkspace } from './use-workspace';
 import { type DiagramNode, MermaidDiagram } from './mermaid-diagram';
 import { PANELS, type PanelId } from './panels';
 import { RESIZE_DIRS, useCanvasLayout } from './use-canvas-layout';
+import { CanvasGrid } from './canvas-grid';
+import { useCanvas2D } from './use-canvas-2d';
 import { useDiagramPanelState } from './use-diagram-panel-state';
 import { ThemeMenu } from '../../theme-menu';
 import './deck-workspace.css';
@@ -229,40 +231,57 @@ function PanelBody ({ render }: { render: () => ReactNode }) {
   return <>{render()}</>;
 }
 
-export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
-  const ws = useWorkspace(meetingId, adapter);
-  const { expanded, closing, openExpand, dock } = useExpand();
-  const zoom = useZoomStack();
-  const { banners, push: pushBanner, dismiss: dismissBanner } = useBanners();
+type Workspace = ReturnType<typeof useWorkspace>;
+type BannerApi = ReturnType<typeof useBanners>;
 
-  // Cross-link: the segment ids currently lit (from hover or a clicked evidence chip).
+/** Cross-link: the segment ids currently lit (hover ∪ a clicked evidence chip). */
+function useCrossLink (ws: Workspace) {
   const [hoverSegs, setHoverSegs] = useState<readonly string[]>([]);
   const litSegs = useMemo(() => new Set([...ws.highlightedIds, ...hoverSegs]), [ws.highlightedIds, hoverSegs]);
 
-  // Bridge transient signals into the banner stack: a load error sticks (and clears
-  // when the load recovers); delta notices auto-dismiss unless they're errors.
+  return {
+    setHoverSegs,
+    litSegs
+  };
+}
+
+/** Bridge transient workspace signals into the banner stack: a load error sticks (and
+ *  clears on recovery); delta notices auto-dismiss unless they're errors. */
+function useWorkspaceBanners (ws: Workspace, push: BannerApi['push'], dismiss: BannerApi['dismiss']) {
   useEffect(() => {
     if (ws.error) {
-      pushBanner({
+      push({
         severity: 'error',
         code    : 'workspace-load',
         message : `Failed to load workspace: ${ws.error}`
       });
     } else {
-      dismissBanner('code:workspace-load');
+      dismiss('code:workspace-load');
     }
-  }, [ws.error, pushBanner, dismissBanner]);
+  }, [ws.error, push, dismiss]);
 
   useEffect(() => {
     if (ws.notice) {
-      pushBanner({
+      push({
         severity: ws.notice.severity,
         code    : ws.notice.code,
         message : ws.notice.message,
         ttl     : ws.notice.severity === 'error' ? undefined : 8000
       });
     }
-  }, [ws.notice, pushBanner]);
+  }, [ws.notice, push]);
+}
+
+export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adapter: WorkspaceDataAdapter }) {
+  const ws = useWorkspace(meetingId, adapter);
+  const { expanded, closing, openExpand, dock } = useExpand();
+  const zoom = useZoomStack();
+  const { banners, push: pushBanner, dismiss: dismissBanner } = useBanners();
+
+  const is2D = useCanvas2D();
+  const { setHoverSegs, litSegs } = useCrossLink(ws);
+
+  useWorkspaceBanners(ws, pushBanner, dismissBanner);
 
   const { wfMin, setWfMin, diagramBusy, setDiagramBusy, diagramLocked, setDiagramLocked } = useDiagramPanelState(expanded);
 
@@ -465,6 +484,20 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
     );
   };
 
+  // The error-bounded panel body — shared by both decks (1-D sections + the 2-D grid).
+  const renderCell = (p: { id: PanelId; title: string }): ReactNode => (
+    <ErrorBoundary
+      resetKey={p.id}
+      onError={error => pushBanner({
+        severity: 'error',
+        code    : `panel-crash-${p.id}`,
+        message : `The ${p.title} panel hit an error: ${error.message}`
+      })}
+      fallback={<p className="dw-empty">This panel hit an error — see the banner. Reload to recover.</p>}>
+      <PanelBody render={() => renderPanelBody(p.id)} />
+    </ErrorBoundary>
+  );
+
   return (
     <div
       className="dw-root"
@@ -501,76 +534,74 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         banners={banners}
         onDismiss={dismissBanner} />
 
-      <div
-        className={`dw-deck${dragging ? ' dw-resizing' : ''}`}
-        ref={setDeck}>
-        {expanded && !closing && <button
-          type="button"
-          className="dw-backdrop"
-          aria-label="Dock"
-          onClick={dock} />}
+      {is2D ? (
+        <CanvasGrid
+          meetingId={meetingId}
+          panels={PANELS}
+          renderBody={renderCell} />
+      ) : (
+        <div
+          className={`dw-deck${dragging ? ' dw-resizing' : ''}`}
+          ref={setDeck}>
+          {expanded && !closing && <button
+            type="button"
+            className="dw-backdrop"
+            aria-label="Dock"
+            onClick={dock} />}
 
-        {PANELS.map(p => {
-          const isExpanded = expanded === p.id;
-          const gripOn = gesture.hoverId === p.id && gesture.hoverIntent === 'surface';
+          {PANELS.map(p => {
+            const isExpanded = expanded === p.id;
+            const gripOn = gesture.hoverId === p.id && gesture.hoverIntent === 'surface';
 
-          // The panel being dragged floats above the rest; otherwise the canvas z (or
-          // the CSS z for an expanded panel).
-          let panelZ: number | undefined = zOf(p.id);
+            // The panel being dragged floats above the rest; otherwise the canvas z (or
+            // the CSS z for an expanded panel).
+            let panelZ: number | undefined = zOf(p.id);
 
-          if (isExpanded) {
-            panelZ = undefined;
-          }
+            if (isExpanded) {
+              panelZ = undefined;
+            }
 
-          if (gesture.dragId === p.id) {
-            panelZ = 30;
-          }
+            if (gesture.dragId === p.id) {
+              panelZ = 30;
+            }
 
-          return (
-            <section
-              key={p.id}
-              ref={setPanelRef(p.id)}
-              data-panel={p.id}
-              className={`dw-panel${gripOn ? ' dw-grip-on' : ''}${isExpanded ? ' dw-expanded' : ''}${gesture.dragId === p.id ? ' dw-dragging-panel' : ''}`}
-              style={{
-                cursor: gesture.cursorFor(p.id),
-                zIndex: panelZ
-              }}
-              data-hover-intent={gesture.hoverId === p.id ? gesture.hoverIntent ?? undefined : undefined}
-              {...gesture.handlers(p.id)}
-            >
-              <div className="dw-grip">
-                <span className="dw-grip-dots"><i /><i /><i /></span>
-                <span className="dw-grip-title">{p.title}</span>
-                {isExpanded ? <button
-                  type="button"
-                  data-intent="control"
-                  className="dw-dock"
-                  onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to move' : ''}</span>}
-              </div>
-              <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
-                <ErrorBoundary
-                  resetKey={p.id}
-                  onError={error => pushBanner({
-                    severity: 'error',
-                    code    : `panel-crash-${p.id}`,
-                    message : `The ${p.title} panel hit an error: ${error.message}`
-                  })}
-                  fallback={<p className="dw-empty">This panel hit an error — see the banner. Reload to recover.</p>}>
-                  <PanelBody render={() => renderPanelBody(p.id)} />
-                </ErrorBoundary>
-              </div>
-              {!isExpanded && RESIZE_DIRS.map(dir => (
-                <span
-                  key={dir}
-                  data-intent="control"
-                  className={`dw-resize dw-resize-${dir}`}
-                  {...resizeProps(p.id, dir)} />
-              ))}
-            </section>
-          );
-        })}
-      </div>
+            return (
+              <section
+                key={p.id}
+                ref={setPanelRef(p.id)}
+                data-panel={p.id}
+                className={`dw-panel${gripOn ? ' dw-grip-on' : ''}${isExpanded ? ' dw-expanded' : ''}${gesture.dragId === p.id ? ' dw-dragging-panel' : ''}`}
+                style={{
+                  cursor: gesture.cursorFor(p.id),
+                  zIndex: panelZ
+                }}
+                data-hover-intent={gesture.hoverId === p.id ? gesture.hoverIntent ?? undefined : undefined}
+                {...gesture.handlers(p.id)}
+              >
+                <div className="dw-grip">
+                  <span className="dw-grip-dots"><i /><i /><i /></span>
+                  <span className="dw-grip-title">{p.title}</span>
+                  {isExpanded ? <button
+                    type="button"
+                    data-intent="control"
+                    className="dw-dock"
+                    onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to move' : ''}</span>}
+                </div>
+                <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
+                  {renderCell(p)}
+                </div>
+                {!isExpanded && RESIZE_DIRS.map(dir => (
+                  <span
+                    key={dir}
+                    data-intent="control"
+                    className={`dw-resize dw-resize-${dir}`}
+                    {...resizeProps(p.id, dir)} />
+                ))}
+              </section>
+            );
+          })}
+        </div>
+      )}
 
       <ZoomStack
         stack={zoom.stack}

@@ -169,6 +169,154 @@
   user-select: none;
 }
 
+/* ── 2-D canvas (react-grid-layout, behind the NEXT_PUBLIC_CANVAS_2D flag) ──
+   RGL makes each .dw-panel a positioned grid item; the panel visual is unchanged,
+   so we only theme the grid's motion, drag state, placeholder, and handles. */
+.dw-grid2d {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden; /* fixed to the parent — the grid is sized to fit, never scrolls */
+}
+
+/* The controls bar: reflow modes + atomic layout presets (the resettable configs). */
+.dw-grid-bar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.dw-grid-bar-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
+}
+
+.dw-grid-bar-label:not(:first-child) {
+  margin-left: 4px;
+}
+
+.dw-grid-bar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 3px 4px;
+  background: var(--peace-line);
+}
+
+.dw-grid-btn {
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1;
+  padding: 4px 11px;
+  color: var(--peace-text);
+  cursor: pointer;
+  background: var(--peace-panel);
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm, 0.4rem);
+  transition:
+    border-color calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    box-shadow calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    background calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-grid-btn:hover {
+  border-color: var(--peace-hover-border);
+  box-shadow: var(--peace-hover-glow);
+}
+
+.dw-grid-btn[data-on='true'] {
+  color: var(--peace-accent);
+  background: var(--peace-selected-bg);
+  border-color: var(--peace-selected-border);
+}
+
+/* The measured grid area — fills below the bar; the RGL grid is sized to fit it. */
+.dw-grid-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dw-grid2d .react-grid-item {
+  transition:
+    transform calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    width calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    height calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-grid2d .react-grid-item.react-draggable-dragging,
+.dw-grid2d .react-grid-item.resizing {
+  z-index: 30;
+  box-shadow: var(--peace-shadow-drag);
+  transition: none;
+}
+
+/* The landing-spot placeholder under a dragged/resized panel. */
+.dw-grid2d .react-grid-placeholder {
+  background: var(--peace-hover-border);
+  border-radius: var(--peace-corner-radius-lg);
+  opacity: 0.16;
+}
+
+/* The grip is the drag handle in 2-D. */
+.dw-grid2d .dw-grip {
+  cursor: grab;
+}
+
+.dw-grid2d .react-grid-item.react-draggable-dragging .dw-grip {
+  cursor: grabbing;
+}
+
+/* Resize affordances: themed, fade in on panel hover (RGL's default gripper dropped).
+   Edges read as a thin accent bar; corners as a small accent square. */
+.dw-grid2d .react-resizable-handle {
+  background: none;
+  opacity: 0;
+  transition: opacity calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-grid2d .dw-grid-panel:hover .react-resizable-handle,
+.dw-grid2d .react-grid-item.resizing .react-resizable-handle {
+  opacity: 1;
+}
+
+.dw-grid2d .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  background: var(--peace-hover-border);
+  border-radius: 999px;
+}
+
+.dw-grid2d .react-resizable-handle-e::after,
+.dw-grid2d .react-resizable-handle-w::after {
+  width: 3px;
+  height: 30px;
+}
+
+.dw-grid2d .react-resizable-handle-n::after,
+.dw-grid2d .react-resizable-handle-s::after {
+  width: 30px;
+  height: 3px;
+}
+
+.dw-grid2d .react-resizable-handle-se::after,
+.dw-grid2d .react-resizable-handle-sw::after,
+.dw-grid2d .react-resizable-handle-ne::after,
+.dw-grid2d .react-resizable-handle-nw::after {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
 .dw-panel {
   position: absolute;
   top: 0;
