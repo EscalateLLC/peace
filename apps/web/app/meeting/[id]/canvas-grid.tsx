@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import GridLayout, { type Layout, type ResizeHandleAxis, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 
+import { useDoubleTap, useExpand } from '../../_kit';
 import type { PanelId } from './panels';
 
 // WidthProvider measures the container and feeds `width` to the grid (created once).
@@ -134,11 +135,18 @@ function loadState (meetingId: string): GridState {
 export function CanvasGrid ({ meetingId, panels, renderBody }: {
   meetingId: string;
   panels: readonly { id: PanelId; title: string }[];
-  renderBody: (panel: { id: PanelId; title: string }) => ReactNode;
+  renderBody: (panel: { id: PanelId; title: string }, focused: boolean) => ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [rowHeight, setRowHeight] = useState(48);
   const [state, setState] = useState<GridState>(() => loadState(meetingId));
+  const { expanded: focusId, closing, openExpand: focusPanel, dock: unfocusPanel } = useExpand();
+
+  // Double-tap a panel grip → maximize it to a focus overlay; double-tap again restores.
+  const dt = useDoubleTap({
+    targetOf   : e => (e.target instanceof Element ? e.target.closest('[data-panel]')?.getAttribute('data-panel') ?? null : null),
+    onDoubleTap: id => (focusId === id ? unfocusPanel() : focusPanel(id))
+  });
 
   // Size rows to the canvas area so ROWS rows exactly fill it — fixed to its parent,
   // never scrolls.
@@ -177,6 +185,23 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
     return () => clearTimeout(t);
   }, [meetingId, state]);
 
+  // Esc closes the focus overlay.
+  useEffect(() => {
+    if (!focusId) {
+      return undefined;
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        unfocusPanel();
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+
+    return () => window.removeEventListener('keydown', onKey);
+  }, [focusId, unfocusPanel]);
+
   const onLayoutChange = useCallback((layout: Layout) => {
     setState(s => ({
       ...s,
@@ -198,6 +223,8 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
       reflow
     }));
   }, []);
+
+  const focusedPanel = focusId ? panels.find(p => p.id === focusId) ?? null : null;
 
   return (
     <div className="dw-grid2d">
@@ -245,16 +272,47 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
               key={p.id}
               data-panel={p.id}
               className="dw-panel dw-grid-panel">
-              <div className="dw-grip">
+              <div
+                className="dw-grip"
+                {...dt.handlers}>
                 <span className="dw-grip-dots"><i /><i /><i /></span>
                 <span className="dw-grip-title">{p.title}</span>
               </div>
               <div className={`dw-body${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
-                {renderBody(p)}
+                {focusId === p.id ? <div className="dw-panel-parked" /> : renderBody(p, false)}
               </div>
             </div>
           ))}
         </ResponsiveGrid>
+
+        {focusedPanel && (
+          <>
+            <button
+              type="button"
+              className="dw-backdrop"
+              aria-label="Close focus"
+              data-closing={closing || undefined}
+              onClick={unfocusPanel} />
+            <div
+              className="dw-panel dw-grid-focus"
+              data-panel={focusedPanel.id}
+              data-closing={closing || undefined}>
+              <div
+                className="dw-grip"
+                {...dt.handlers}>
+                <span className="dw-grip-dots"><i /><i /><i /></span>
+                <span className="dw-grip-title">{focusedPanel.title}</span>
+                <button
+                  type="button"
+                  className="dw-dock"
+                  onClick={unfocusPanel}>dock ✕</button>
+              </div>
+              <div className={`dw-body${focusedPanel.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
+                {renderBody(focusedPanel, true)}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

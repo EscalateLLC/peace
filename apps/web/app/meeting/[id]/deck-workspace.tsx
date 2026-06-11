@@ -391,8 +391,9 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
 
   const live = data.meeting.status === 'live';
 
-  const renderPanelBody = (id: PanelId): ReactNode => {
-    const dense = expanded !== id;
+  const renderPanelBody = (id: PanelId, focused = false): ReactNode => {
+    const open = expanded === id || focused; // expanded (1-D) or focused (2-D overlay)
+    const dense = !open;
 
     if (id === 'comms') {
       return <Transcript
@@ -408,7 +409,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         source={diagramSource}
         nodeEvidence={diagramNodeEvidence}
         litSegs={litSegs}
-        expanded={expanded === id}
+        expanded={open}
         busy={diagramBusy}
         locked={diagramLocked}
         onToggleLock={() => setDiagramLocked(v => !v)}
@@ -424,7 +425,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
 
       // Expanded → diagram on the left, the flow outline on the right; either side
       // minimises to a thin rail. Collapsed → the diagram up top, the outline below.
-      if (expanded === id) {
+      if (open) {
         return (
           <div
             className="dw-workflow-h"
@@ -485,7 +486,8 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   };
 
   // The error-bounded panel body — shared by both decks (1-D sections + the 2-D grid).
-  const renderCell = (p: { id: PanelId; title: string }): ReactNode => (
+  // `focused` = the 2-D maximize overlay, so the body renders its expanded variant.
+  const renderCell = (p: { id: PanelId; title: string }, focused = false): ReactNode => (
     <ErrorBoundary
       resetKey={p.id}
       onError={error => pushBanner({
@@ -494,7 +496,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
         message : `The ${p.title} panel hit an error: ${error.message}`
       })}
       fallback={<p className="dw-empty">This panel hit an error — see the banner. Reload to recover.</p>}>
-      <PanelBody render={() => renderPanelBody(p.id)} />
+      <PanelBody render={() => renderPanelBody(p.id, focused)} />
     </ErrorBoundary>
   );
 

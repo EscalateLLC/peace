@@ -14,4 +14,6 @@ export * from './useSpringLayout';
 
 export * from './useExpand';
 
+export * from './useDoubleTap';
+
 export * from './useResize';
