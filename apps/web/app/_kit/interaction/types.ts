@@ -12,12 +12,13 @@ export interface Target { x: number; y: number; w: number; h: number }
 export interface AnimState { x: number; y: number; w: number; h: number; vx: number; vy: number; vw: number; vh: number }
 
 /**
- * The panel currently being dragged + its pointer-driven position (shared
- * spring↔gesture). `x` always tracks the pointer; `y` is optional so a 2D
- * layout strategy can drag freely in both axes (the horizontal row leaves it
- * undefined, so y keeps springing to its slot).
+ * The panel currently being dragged + its pointer-driven geometry (shared
+ * spring↔gesture). `x` always tracks the pointer; `y`/`w`/`h` are optional so a
+ * 2D / resizable layout strategy can drive any axis render-free (a moved panel
+ * sets x[/y]; a resized panel also sets w/h). The horizontal row leaves them
+ * undefined, so those axes keep springing to the slot.
  */
-export interface DragState { panel: Id | null; x: number; y?: number }
+export interface DragState { panel: Id | null; x: number; y?: number; w?: number; h?: number }
 
 export type Axis = 'x' | 'y' | 'w' | 'h';
 

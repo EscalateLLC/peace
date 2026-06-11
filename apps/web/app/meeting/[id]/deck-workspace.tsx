@@ -15,7 +15,8 @@ import {
 } from '../../_kit';
 import { useWorkspace } from './use-workspace';
 import { type DiagramNode, MermaidDiagram } from './mermaid-diagram';
-import { GAP, PAD, PANELS, type PanelId, useDeckLayout } from './use-deck-layout';
+import { PANELS, type PanelId } from './panels';
+import { RESIZE_DIRS, useCanvasLayout } from './use-canvas-layout';
 import { useDiagramPanelState } from './use-diagram-panel-state';
 import { ThemeMenu } from '../../theme-menu';
 import './deck-workspace.css';
@@ -265,7 +266,8 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
 
   const { wfMin, setWfMin, diagramBusy, setDiagramBusy, diagramLocked, setDiagramLocked } = useDiagramPanelState(expanded);
 
-  const { setDeck, ready, geom, dragging, onSeamDown, onSeamMove, onSeamUp, setPanelRef, gesture } = useDeckLayout({
+  const { setDeck, dragging, setPanelRef, gesture, resizeProps, zOf } = useCanvasLayout({
+    meetingId,
     expanded,
     closing,
     dock,
@@ -518,7 +520,10 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
               ref={setPanelRef(p.id)}
               data-panel={p.id}
               className={`dw-panel${gripOn ? ' dw-grip-on' : ''}${isExpanded ? ' dw-expanded' : ''}${gesture.dragId === p.id ? ' dw-dragging-panel' : ''}`}
-              style={{ cursor: gesture.cursorFor(p.id) }}
+              style={{
+                cursor: gesture.cursorFor(p.id),
+                zIndex: isExpanded ? undefined : zOf(p.id)
+              }}
               data-hover-intent={gesture.hoverId === p.id ? gesture.hoverIntent ?? undefined : undefined}
               {...gesture.handlers(p.id)}
             >
@@ -529,7 +534,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
                   type="button"
                   data-intent="control"
                   className="dw-dock"
-                  onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to reorder' : ''}</span>}
+                  onClick={dock}>dock ✕</button> : <span className="dw-grip-hint">{gripOn ? 'tap to expand · drag to move' : ''}</span>}
               </div>
               <div className={`dw-body${isExpanded ? ' dw-body-expanded' : ''}${p.id === 'workflow' ? ' dw-body-canvas' : ''}`}>
                 <ErrorBoundary
@@ -543,26 +548,16 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
                   <PanelBody render={() => renderPanelBody(p.id)} />
                 </ErrorBoundary>
               </div>
+              {!isExpanded && RESIZE_DIRS.map(dir => (
+                <span
+                  key={dir}
+                  data-intent="control"
+                  className={`dw-resize dw-resize-${dir}`}
+                  {...resizeProps(p.id, dir)} />
+              ))}
             </section>
           );
         })}
-
-        {ready && !expanded && [0, 1].map(k => (
-          <div
-            key={k}
-            data-intent="control"
-            className={`dw-seam${dragging ? ' dw-seam-drag' : ''}`}
-            style={{
-              transform: `translate3d(${geom.sx[k]! + geom.sw[k]! + GAP / 2}px, ${PAD}px, 0)`,
-              height   : `${geom.h}px`
-            }}
-            onPointerDown={onSeamDown(k)}
-            onPointerMove={onSeamMove}
-            onPointerUp={onSeamUp}
-          >
-            <span className="dw-seam-grip" />
-          </div>
-        ))}
       </div>
 
       <ZoomStack

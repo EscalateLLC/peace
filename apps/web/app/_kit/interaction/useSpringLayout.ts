@@ -80,8 +80,8 @@ export function useSpringLayout (opts: {
         animRef.current.set(id, a);
       }
 
-      // A panel being dragged snaps to the pointer (x always; y when a 2D
-      // strategy provides it) and freezes its size; the others spring around it.
+      // A dragged panel snaps to the pointer-driven geometry (x always; y/w/h when
+      // a 2D / resizable strategy provides them); the others spring around it.
       if (drag.current.panel === id) {
         a.x = drag.current.x;
         a.vx = 0;
@@ -89,6 +89,16 @@ export function useSpringLayout (opts: {
         if (drag.current.y !== undefined) {
           a.y = drag.current.y;
           a.vy = 0;
+        }
+
+        if (drag.current.w !== undefined) {
+          a.w = drag.current.w;
+          a.vw = 0;
+        }
+
+        if (drag.current.h !== undefined) {
+          a.h = drag.current.h;
+          a.vh = 0;
         }
 
         apply(id);
