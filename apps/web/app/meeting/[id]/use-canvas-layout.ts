@@ -5,8 +5,8 @@ import { type DragState, type Target, useIntentGesture, useSpringLayout } from '
 import { IDS, type PanelId } from './panels';
 import { type CanvasLayout, type CellRect, layoutStore } from './layout-store';
 
-/** The 8 resize handles. Each letter is an edge it drags (n/s/e/w + corners). */
-export const RESIZE_DIRS = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
+/** 1-D layout: panels resize horizontally only (the 2-D/free engine lives behind a flag). */
+export const RESIZE_DIRS = ['e', 'w'] as const;
 
 // A cols × rows grid, both as fractions of the deck — fully responsive, viewport-bound
 // (no scroll) in v1. Cell coords snap; the px geometry is derived each render.
@@ -54,60 +54,74 @@ const clampRect = (r: CellRect): CellRect => {
   };
 };
 
-const collides = (a: CellRect, b: CellRect): boolean => a.cx < b.cx + b.cw && a.cx + a.cw > b.cx && a.cy < b.cy + b.ch && a.cy + a.ch > b.cy;
-
 /**
- * Pull every box left to fill horizontal gaps (reading order). `fixed` (the box
- * being dragged) stays put so the others settle around it; omit it to compact the
- * whole grid (on drop) into a tidy, gapless arrangement.
+ * Lay the boxes out left-to-right, packed contiguously in reading order (no gaps,
+ * no overlap). Packing in order *preserves the sequence* — the dragged box's cx
+ * decides its slot, the rest keep their order — so dragging across reorders cleanly
+ * instead of letting a narrow box slip into a gap a wider one couldn't take.
  */
-const compact = (layout: CanvasLayout, fixed?: PanelId): CanvasLayout => {
+const compact = (layout: CanvasLayout): CanvasLayout => {
   const out = { ...layout };
-  const order = IDS.filter(id => id !== fixed).sort((a, b) => layout[a].cx - layout[b].cx || layout[a].cy - layout[b].cy);
-  const placed: PanelId[] = fixed ? [fixed] : [];
+  const order = IDS.slice().sort((a, b) => layout[a].cx - layout[b].cx || layout[a].cy - layout[b].cy);
+  let cx = 0;
 
   for (const id of order) {
-    const box = layout[id];
-    let cx = box.cx;
-
-    // Scan from the left for the first slot clear of already-placed boxes — finds the
-    // free space even when it's beyond the (immovable) dragged box.
-    for (let probe = 0; probe <= COLS - box.cw; probe += 1) {
-      if (!placed.some(p => collides({
-        ...box,
-        cx: probe
-      }, out[p]))) {
-        cx = probe;
-        break;
-      }
-    }
-
     out[id] = {
-      ...box,
+      ...layout[id],
       cx
     };
-    placed.push(id);
+    cx += layout[id].cw;
   }
 
   return out;
 };
 
 /**
- * Reflow the grid as a box is dragged to (cx, cy): pin it there, then let the others
- * settle into the leftmost free slots around it — the "drag rearranges the grid"
- * behaviour of a tidy dashboard.
+ * Reorder the row as a box is dragged: drop it at the insertion point where its
+ * centre falls among the *closed-up* others (the slots they'd take without it), so a
+ * small drag past a neighbour swaps them — and the same whichever box you grab. Then
+ * pack the row contiguously (gapless, order preserved).
  */
 const reflow = (layout: CanvasLayout, id: PanelId, at: { cx: number; cy: number }): CanvasLayout => {
+  // 1-D: panels stay in the single row (cy 0, full height); only the column order moves.
+  const dragged = clampRect({
+    ...layout[id],
+    cx: at.cx,
+    cy: 0
+  });
+  const centre = at.cx + dragged.cw / 2;
+  const others = IDS.filter(other => other !== id).sort((a, b) => layout[a].cx - layout[b].cx);
+
+  let index = others.length;
+  let cursor = 0;
+
+  for (let i = 0; i < others.length; i += 1) {
+    const w = layout[others[i]!].cw;
+
+    if (cursor + w / 2 > centre) {
+      index = i;
+      break;
+    }
+
+    cursor += w;
+  }
+
+  const order = [...others.slice(0, index), id, ...others.slice(index)];
   const out: CanvasLayout = {
     ...layout,
-    [id]: clampRect({
-      ...layout[id],
-      cx: at.cx,
-      cy: at.cy
-    })
+    [id]: dragged
   };
+  let cx = 0;
 
-  return compact(out, id);
+  for (const pid of order) {
+    out[pid] = {
+      ...out[pid],
+      cx
+    };
+    cx += out[pid].cw;
+  }
+
+  return out;
 };
 
 /**
@@ -263,7 +277,7 @@ export function useCanvasLayout ({ meetingId, expanded, closing, dock, openExpan
       setRects(prev => bringToFront(id as PanelId, prev));
       kick();
     },
-    onDragMove: ({ id, clientX, clientY }) => {
+    onDragMove: ({ id, clientX }) => {
       const dr = deckRef.current?.getBoundingClientRect();
       const start = startRef.current;
 
@@ -271,23 +285,21 @@ export function useCanvasLayout ({ meetingId, expanded, closing, dock, openExpan
         return;
       }
 
+      // 1-D: only x tracks the pointer; the box stays in its row (y springs to target).
       const x = clientX - grab.current.x - dr.x;
-      const y = clientY - grab.current.y - dr.y;
 
       drag.current = {
         panel: id,
-        x,
-        y
+        x
       };
 
-      // Reflow the others around the cell the dragged box is hovering (from the
-      // layout at grab time, so the rearrangement is stable as the pointer moves).
+      // Reflow the row around the column the dragged box is over (from the layout at
+      // grab time, so the rearrangement is stable as the pointer moves).
       const cx = Math.round((x - PAD) / (cell.cw + GAP));
-      const cy = Math.round((y - PAD) / (cell.ch + GAP));
 
       setRects(reflow(start, id as PanelId, {
         cx,
-        cy
+        cy: 0
       }));
       kick();
     },
@@ -303,8 +315,19 @@ export function useCanvasLayout ({ meetingId, expanded, closing, dock, openExpan
     }
   });
 
-  // ── resize: each handle snaps the dragged edge(s) to whole grid cells live ──
-  const resizeRef = useRef<{ id: PanelId; dir: string; cells: CellRect; sx: number; sy: number; snap: CellRect } | null>(null);
+  // ── resize: a split — dragging an edge grows this panel and shrinks the neighbour
+  // across that boundary by the same amount, so the row always stays full (never any
+  // free space). Snaps to whole cells. An outer (canvas) edge has no neighbour → inert.
+  const resizeRef = useRef<{
+    id: PanelId;
+    neighbour: PanelId;
+    idCw: number;
+    nbCw: number;
+    idCx: number;
+    nbCx: number;
+    grows: 'e' | 'w';
+    sx: number;
+  } | null>(null);
 
   const resizeProps = (id: PanelId, dir: string) => ({
     onPointerDown: (e: ReactPointerEvent) => {
@@ -312,29 +335,25 @@ export function useCanvasLayout ({ meetingId, expanded, closing, dock, openExpan
         return;
       }
 
+      const row = IDS.slice().sort((a, b) => rects[a].cx - rects[b].cx);
+      const neighbour = dir === 'e' ? row[row.indexOf(id) + 1] : row[row.indexOf(id) - 1];
+
+      if (!neighbour) {
+        return; // the outer canvas edge has nothing to resize against
+      }
+
       e.currentTarget.setPointerCapture(e.pointerId);
-
-      const cells = rects[id];
-      const px = rectToPx(cells);
-
       resizeRef.current = {
         id,
-        dir,
-        cells,
-        sx  : e.clientX,
-        sy  : e.clientY,
-        snap: cells
-      };
-      drag.current = {
-        panel: id,
-        x    : px.x,
-        y    : px.y,
-        w    : px.w,
-        h    : px.h
+        neighbour,
+        idCw : rects[id].cw,
+        nbCw : rects[neighbour].cw,
+        idCx : rects[id].cx,
+        nbCx : rects[neighbour].cx,
+        grows: dir as 'e' | 'w',
+        sx   : e.clientX
       };
       setDragging(true);
-      setRects(prev => bringToFront(id, prev));
-      kick();
     },
     onPointerMove: (e: ReactPointerEvent) => {
       const r = resizeRef.current;
@@ -343,83 +362,28 @@ export function useCanvasLayout ({ meetingId, expanded, closing, dock, openExpan
         return;
       }
 
-      // Pointer delta → whole-cell delta, so the edge jumps cell-by-cell (snap points).
-      const cdx = Math.round((e.clientX - r.sx) / (cell.cw + GAP));
-      const cdy = Math.round((e.clientY - r.sy) / (cell.ch + GAP));
-      let { cx, cy, cw, ch } = r.cells;
+      // Whole-cell delta (live snap); positive = this panel grows, the neighbour shrinks.
+      const raw = Math.round((e.clientX - r.sx) / (cell.cw + GAP));
+      const grow = Math.max(MIN_CW - r.idCw, Math.min(r.nbCw - MIN_CW, r.grows === 'e' ? raw : -raw));
 
-      if (dir.includes('e')) {
-        cw = r.cells.cw + cdx;
-      }
-
-      if (dir.includes('s')) {
-        ch = r.cells.ch + cdy;
-      }
-
-      if (dir.includes('w')) {
-        cx = r.cells.cx + cdx;
-        cw = r.cells.cw - cdx;
-
-        if (cw < MIN_CW) {
-          cx -= MIN_CW - cw; // keep the anchored right edge fixed
-          cw = MIN_CW;
-        }
-      }
-
-      if (dir.includes('n')) {
-        cy = r.cells.cy + cdy;
-        ch = r.cells.ch - cdy;
-
-        if (ch < MIN_CH) {
-          cy -= MIN_CH - ch; // keep the anchored bottom edge fixed
-          ch = MIN_CH;
-        }
-      }
-
-      const snap = clampRect({
-        z: r.cells.z,
-        cx,
-        cy,
-        cw,
-        ch
-      });
-
-      r.snap = snap;
-
-      const px = rectToPx(snap);
-
-      drag.current = {
-        panel: id,
-        x    : px.x,
-        y    : px.y,
-        w    : px.w,
-        h    : px.h
-      };
-      kick();
-    },
-    onPointerUp: () => {
-      const r = resizeRef.current;
-
-      if (!r) {
-        return;
-      }
-
-      const { snap } = r;
-
-      resizeRef.current = null;
-      drag.current = {
-        panel: null,
-        x    : 0
-      };
-      setDragging(false);
       setRects(prev => ({
         ...prev,
         [r.id]: {
-          ...snap,
-          z: prev[r.id].z
+          ...prev[r.id],
+          cw: r.idCw + grow,
+          cx: r.grows === 'w' ? r.idCx - grow : r.idCx
+        },
+        [r.neighbour]: {
+          ...prev[r.neighbour],
+          cw: r.nbCw - grow,
+          cx: r.grows === 'e' ? r.nbCx + grow : r.nbCx
         }
       }));
       kick();
+    },
+    onPointerUp: () => {
+      resizeRef.current = null;
+      setDragging(false);
     }
   });
 

@@ -514,6 +514,18 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
           const isExpanded = expanded === p.id;
           const gripOn = gesture.hoverId === p.id && gesture.hoverIntent === 'surface';
 
+          // The panel being dragged floats above the rest; otherwise the canvas z (or
+          // the CSS z for an expanded panel).
+          let panelZ: number | undefined = zOf(p.id);
+
+          if (isExpanded) {
+            panelZ = undefined;
+          }
+
+          if (gesture.dragId === p.id) {
+            panelZ = 30;
+          }
+
           return (
             <section
               key={p.id}
@@ -522,7 +534,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
               className={`dw-panel${gripOn ? ' dw-grip-on' : ''}${isExpanded ? ' dw-expanded' : ''}${gesture.dragId === p.id ? ' dw-dragging-panel' : ''}`}
               style={{
                 cursor: gesture.cursorFor(p.id),
-                zIndex: isExpanded ? undefined : zOf(p.id)
+                zIndex: panelZ
               }}
               data-hover-intent={gesture.hoverId === p.id ? gesture.hoverIntent ?? undefined : undefined}
               {...gesture.handlers(p.id)}
