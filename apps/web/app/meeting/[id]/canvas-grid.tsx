@@ -16,30 +16,26 @@ const ROWS = 12;
 const MARGIN: [number, number] = [10, 10];
 const PADDING: [number, number] = [12, 12];
 
-// Top edge is the drag grip, so resize lives on the other three edges + the bottom
-// corners — no handle ever fights the grip for the pointer.
-const RESIZE_HANDLES: ResizeHandleAxis[] = ['s', 'e', 'w', 'se', 'sw'];
+// Full 8-point resize border. Edge handles are thin strips (CSS) so the top one sits
+// above the grip without stealing the whole header from the drag gesture.
+const RESIZE_HANDLES: ResizeHandleAxis[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
 const PANEL_IDS: PanelId[] = ['comms', 'workflow', 'summary'];
 
-/** Reflow modes: free placement, or RGL's gravity compaction (configurable, persisted). */
-type Reflow = 'free' | 'vertical' | 'horizontal';
+/** Reflow modes: RGL gravity compaction by axis (configurable, persisted). Both push
+ * neighbours out of the way on collision — the displacement that makes the canvas feel alive. */
+type Reflow = 'vertical' | 'horizontal';
 const REFLOW: { id: Reflow; label: string }[] = [
   {
-    id   : 'free',
-    label: 'Free'
+    id   : 'horizontal',
+    label: 'Columns'
   },
   {
     id   : 'vertical',
     label: 'Stack'
-  },
-  {
-    id   : 'horizontal',
-    label: 'Pack'
   }
 ];
-const COMPACT: Record<Reflow, 'vertical' | 'horizontal' | null> = {
-  free      : null,
+const COMPACT: Record<Reflow, 'vertical' | 'horizontal'> = {
   vertical  : 'vertical',
   horizontal: 'horizontal'
 };
@@ -74,10 +70,28 @@ const PRESETS: { id: string; label: string; layout: Layout }[] = [
 ];
 const DEFAULT_LAYOUT = PRESETS[0]!.layout;
 
+// Bump when the reflow default changes so old grids adopt the new one (layout kept).
+const STORAGE_VERSION = 4;
 const storageKey = (meetingId: string): string => `peace:grid:${meetingId}`;
 
 /** The rowHeight that makes ROWS rows exactly fill `height` px — so the grid never scrolls. */
 const rowHeightFor = (height: number): number => Math.max(24, Math.floor((height - 2 * PADDING[1] - (ROWS - 1) * MARGIN[1]) / ROWS));
+
+/** Clamp every panel fully inside the grid — auto-corrects a container nudged out of bounds. */
+function clampLayout (layout: Layout): Layout {
+  return layout.map(l => {
+    const w = Math.min(Math.max(l.w, l.minW ?? 2), COLS);
+    const h = Math.min(Math.max(l.h, l.minH ?? 3), ROWS);
+
+    return {
+      ...l,
+      w,
+      h,
+      x: Math.max(0, Math.min(l.x, COLS - w)),
+      y: Math.max(0, Math.min(l.y, ROWS - h))
+    };
+  });
+}
 
 /** A layout is usable only if every panel appears exactly once — otherwise we reset. */
 function validLayout (value: unknown): value is Layout {
@@ -100,15 +114,17 @@ function loadState (meetingId: string): GridState {
     if (validLayout(parsed)) {
       return {
         layout: parsed,
-        reflow: 'free'
+        reflow: 'horizontal'
       }; // legacy shape: a bare layout array
     }
 
     if (parsed && typeof parsed === 'object') {
-      const obj = parsed as { layout?: unknown; reflow?: unknown };
+      const obj = parsed as { v?: unknown; layout?: unknown; reflow?: unknown };
 
       if (validLayout(obj.layout)) {
-        const reflow = typeof obj.reflow === 'string' && obj.reflow in COMPACT ? obj.reflow as Reflow : 'free';
+        // Keep the saved reflow only if it was written by this storage version; otherwise
+        // adopt the current default (the mode set + default changed).
+        const reflow = obj.v === STORAGE_VERSION && typeof obj.reflow === 'string' && obj.reflow in COMPACT ? obj.reflow as Reflow : 'horizontal';
 
         return {
           layout: obj.layout,
@@ -122,8 +138,85 @@ function loadState (meetingId: string): GridState {
 
   return {
     layout: DEFAULT_LAYOUT,
-    reflow: 'free'
+    reflow: 'horizontal'
   };
+}
+
+/**
+ * Grow panel `id` greedily into the empty cells around it (right, down, left, up until
+ * it can't). Returns the new layout, or null if it's hemmed in (no free space) — in
+ * which case the caller goes full-screen instead.
+ */
+function growIntoFreeSpace (layout: Layout, id: string): Layout | null {
+  const target = layout.find(l => l.i === id);
+
+  if (!target) {
+    return null;
+  }
+
+  const others = layout.filter(l => l.i !== id);
+  const occupied = (cx: number, cy: number): boolean => others.some(o => cx >= o.x && cx < o.x + o.w && cy >= o.y && cy < o.y + o.h);
+
+  const colClear = (cx: number, y0: number, h0: number): boolean => {
+    for (let yy = y0; yy < y0 + h0; yy += 1) {
+      if (occupied(cx, yy)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const rowClear = (cy: number, x0: number, w0: number): boolean => {
+    for (let xx = x0; xx < x0 + w0; xx += 1) {
+      if (occupied(xx, cy)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  let { x, y, w, h } = target;
+  let grew = true;
+
+  while (grew) {
+    grew = false;
+
+    if (x + w < COLS && colClear(x + w, y, h)) {
+      w += 1;
+      grew = true;
+    }
+
+    if (y + h < ROWS && rowClear(y + h, x, w)) {
+      h += 1;
+      grew = true;
+    }
+
+    if (x > 0 && colClear(x - 1, y, h)) {
+      x -= 1;
+      w += 1;
+      grew = true;
+    }
+
+    if (y > 0 && rowClear(y - 1, x, w)) {
+      y -= 1;
+      h += 1;
+      grew = true;
+    }
+  }
+
+  if (x === target.x && y === target.y && w === target.w && h === target.h) {
+    return null; // hemmed in — nothing to grow into
+  }
+
+  return layout.map(l => (l.i === id ? {
+    ...l,
+    x,
+    y,
+    w,
+    h
+  } : l));
 }
 
 /**
@@ -139,13 +232,57 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [rowHeight, setRowHeight] = useState(48);
-  const [state, setState] = useState<GridState>(() => loadState(meetingId));
+  const [state, setState] = useState<GridState>(() => {
+    const loaded = loadState(meetingId);
+
+    return {
+      ...loaded,
+      layout: clampLayout(loaded.layout)
+    };
+  });
   const { expanded: focusId, closing, openExpand: focusPanel, dock: unfocusPanel } = useExpand();
 
-  // Double-tap a panel grip → maximize it to a focus overlay; double-tap again restores.
+  const grownRef = useRef<{ id: string; prior: Layout } | null>(null);
+
+  // Double-tap a panel header → grow it into adjacent free space; if it's hemmed in (no
+  // free space), go full-screen instead. Double-tap the grown/full-screen panel again to
+  // restore.
   const dt = useDoubleTap({
     targetOf   : e => (e.target instanceof Element ? e.target.closest('[data-panel]')?.getAttribute('data-panel') ?? null : null),
-    onDoubleTap: id => (focusId === id ? unfocusPanel() : focusPanel(id))
+    onDoubleTap: id => {
+      if (grownRef.current?.id === id) {
+        const { prior } = grownRef.current;
+
+        grownRef.current = null;
+        setState(s => ({
+          ...s,
+          layout: prior
+        }));
+
+        return;
+      }
+
+      if (focusId === id) {
+        unfocusPanel();
+
+        return;
+      }
+
+      const grown = growIntoFreeSpace(state.layout, id);
+
+      if (grown) {
+        grownRef.current = {
+          id,
+          prior: state.layout
+        };
+        setState(s => ({
+          ...s,
+          layout: grown
+        }));
+      } else {
+        focusPanel(id);
+      }
+    }
   });
 
   // Size rows to the canvas area so ROWS rows exactly fill it — fixed to its parent,
@@ -176,7 +313,10 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
   useEffect(() => {
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(storageKey(meetingId), JSON.stringify(state));
+        localStorage.setItem(storageKey(meetingId), JSON.stringify({
+          v: STORAGE_VERSION,
+          ...state
+        }));
       } catch {
         // best-effort persistence
       }
@@ -202,10 +342,12 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
     return () => window.removeEventListener('keydown', onKey);
   }, [focusId, unfocusPanel]);
 
+  // RGL owns the live + committed layout (its native reflow gives the opportunistic
+  // neighbour displacement); we clamp anything out of bounds and persist what it produces.
   const onLayoutChange = useCallback((layout: Layout) => {
     setState(s => ({
       ...s,
-      layout
+      layout: clampLayout(layout)
     }));
   }, []);
 
@@ -266,7 +408,8 @@ export function CanvasGrid ({ meetingId, panels, renderBody }: {
           draggableHandle=".dw-grip"
           resizeHandles={RESIZE_HANDLES}
           compactType={COMPACT[state.reflow]}
-          preventCollision={false}>
+          preventCollision={false}
+          isBounded={true}>
           {panels.map(p => (
             <div
               key={p.id}

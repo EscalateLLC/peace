@@ -236,6 +236,36 @@
   border-color: var(--peace-selected-border);
 }
 
+/* Header 1-D / 2-D dimensionality toggle (a small segmented control). */
+.dw-dim {
+  display: inline-flex;
+  overflow: hidden;
+  border: var(--peace-border-width) solid var(--peace-line);
+  border-radius: var(--peace-corner-radius-sm, 0.4rem);
+}
+
+.dw-dim-btn {
+  font: inherit;
+  font-size: 0.74rem;
+  padding: 3px 10px;
+  color: var(--peace-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  transition:
+    background calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease),
+    color calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
+}
+
+.dw-dim-btn[data-on='true'] {
+  color: var(--peace-accent);
+  background: var(--peace-selected-bg);
+}
+
+.dw-dim-btn:not([data-on='true']):hover {
+  background: var(--peace-hover-bg, var(--peace-line));
+}
+
 /* The measured grid area — fills below the bar; the RGL grid is sized to fit it. */
 .dw-grid-canvas {
   position: relative;
@@ -274,12 +304,16 @@
   cursor: grabbing;
 }
 
-/* Resize affordances: themed, fade in on panel hover (RGL's default gripper dropped).
-   Edges read as a thin accent bar; corners as a small accent square. */
+/* Resize: the 8 RGL handles (four edge mid-points + four corners). We keep RGL's own
+   positions (overriding them fights its inline styles) and only fix the size + give each
+   a small themed grip that fades in on panel hover. */
 .dw-grid2d .react-resizable-handle {
+  width: 16px;
+  height: 16px;
+  margin: 0;
   background: none;
   opacity: 0;
-  transition: opacity calc(var(--peace-dur-2) * var(--peace-motion-scale)) var(--peace-ease);
+  transition: opacity calc(var(--peace-dur-3) * var(--peace-motion-scale)) var(--peace-ease);
 }
 
 .dw-grid2d .dw-grid-panel:hover .react-resizable-handle,
@@ -292,28 +326,10 @@
   position: absolute;
   inset: 0;
   margin: auto;
+  width: 9px;
+  height: 9px;
   background: var(--peace-hover-border);
-  border-radius: 999px;
-}
-
-.dw-grid2d .react-resizable-handle-e::after,
-.dw-grid2d .react-resizable-handle-w::after {
-  width: 3px;
-  height: 30px;
-}
-
-.dw-grid2d .react-resizable-handle-n::after,
-.dw-grid2d .react-resizable-handle-s::after {
-  width: 30px;
-  height: 3px;
-}
-
-.dw-grid2d .react-resizable-handle-se::after,
-.dw-grid2d .react-resizable-handle-sw::after,
-.dw-grid2d .react-resizable-handle-ne::after,
-.dw-grid2d .react-resizable-handle-nw::after {
-  width: 8px;
-  height: 8px;
+  border: 1px solid var(--peace-panel);
   border-radius: 2px;
 }
 

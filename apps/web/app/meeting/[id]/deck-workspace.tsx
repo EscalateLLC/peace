@@ -278,7 +278,7 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
   const zoom = useZoomStack();
   const { banners, push: pushBanner, dismiss: dismissBanner } = useBanners();
 
-  const is2D = useCanvas2D();
+  const [is2D, setIs2D] = useCanvas2D();
   const { setHoverSegs, litSegs } = useCrossLink(ws);
 
   useWorkspaceBanners(ws, pushBanner, dismissBanner);
@@ -522,6 +522,21 @@ export function DeckWorkspace ({ meetingId, adapter }: { meetingId: string; adap
           className="dw-delayed"
           title="Push unavailable — polling">live · delayed</span>}
         <span className="dw-count">{segments.length} segments · {data.meeting.platform}</span>
+        <div
+          className="dw-dim"
+          role="group"
+          aria-label="Layout dimensionality">
+          <button
+            type="button"
+            className="dw-dim-btn"
+            data-on={!is2D}
+            onClick={() => setIs2D(false)}>1-D</button>
+          <button
+            type="button"
+            className="dw-dim-btn"
+            data-on={is2D}
+            onClick={() => setIs2D(true)}>2-D</button>
+        </div>
         <button
           type="button"
           className="dw-btn"
